@@ -1,0 +1,50 @@
+---
+description: 后端编码规范（FastAPI + Python）
+globs: backend/**
+alwaysApply: false
+---
+
+# 后端编码规范
+
+## 项目结构
+```
+backend/
+├── app/
+│   ├── main.py              # FastAPI 入口
+│   ├── config.py            # 环境变量读取
+│   ├── database.py          # async SQLAlchemy 连接
+│   ├── models/              # ORM 模型
+│   ├── schemas/             # Pydantic 请求/响应
+│   ├── routers/             # API 路由（按功能分文件）
+│   ├── services/            # 业务逻辑（Router 不直接写逻辑）
+│   ├── utils/               # 工具函数
+│   └── dependencies.py      # 依赖注入
+├── alembic/                 # 数据库迁移
+├── tests/
+└── Dockerfile
+```
+
+## 编码规则
+1. 所有接口 async/await
+2. 数据校验用 Pydantic，不手动 if 判断
+3. 数据库操作放 services/，Router 只做参数接收和响应返回
+4. 认证通过 dependencies.py 的 get_current_user 注入
+5. 敏感信息放环境变量（.env），不提交 git
+6. 每个 Router 加 tags，方便 Swagger 文档
+7. 错误统一格式：`{"detail": "描述", "code": "ERROR_CODE"}`
+8. 分页参数：page（从1开始）、page_size（默认20，最大100）
+9. ID 统一 UUID
+10. 时间统一 UTC，前端展示时转时区
+
+## 数据库规范
+- 连接字符串从 DATABASE_URL 环境变量读取
+- 迁移用 Alembic，每次改 model 后生成迁移文件
+- 重要表软删除（deleted_at 字段）
+- 每张表必须有 created_at、updated_at
+- 外键和常用查询条件必须建索引
+
+## 中间件集成
+- MinIO：utils/minio_client.py，预签名 URL 有效期 1 小时
+- OpenSearch：utils/search_client.py
+- JWT：dependencies.py，Token 有效期 24 小时
+- 安全扫描：services/scan_service.py（Semgrep + ClamAV + LLM）

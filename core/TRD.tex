@@ -1,0 +1,219 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店}
+\fancyhead[R]{\small\color{graytext} TRD}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+\title{\textbf{TRD：技术需求文档}\\[0.5em]\large Technical Requirements Document}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.2}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+文档类型 & TRD（Technical Requirements Document） \\
+定位 & 技术需求文档 -- 架构怎么选？接口怎么定义？数据库怎么设计？ \\
+核心问题 & 技术层面的详细方案 \\
+前置文档 & RFC（技术提案） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{系统架构}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.8cm,
+  box/.style={rectangle, rounded corners, draw=primary, fill=primary!5, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\small},
+  db/.style={cylinder, draw=accent, fill=accent!5, shape border rotate=90, minimum width=1.5cm, minimum height=0.8cm, align=center, font=\small, aspect=0.25},
+  arrow/.style={-{Stealth[length=2.5mm]}, thick, graytext}
+]
+  % 前端
+  \node[box] (fe) {Vue 3 + Element Plus\\（SPA）};
+  % 后端
+  \node[box, right=2cm of fe] (be) {FastAPI\\（async API）};
+  % 存储
+  \node[db, below left=1.2cm and 0.5cm of be] (pg) {PostgreSQL};
+  \node[db, below=1.2cm of be] (os) {OpenSearch};
+  \node[db, below right=1.2cm and 0.5cm of be] (minio) {MinIO};
+  % 扫描
+  \node[box, right=2cm of be] (scan) {三层扫描\\Semgrep+ClamAV+LLM};
+
+  \draw[arrow] (fe) -- node[above, font=\footnotesize]{HTTP/REST} (be);
+  \draw[arrow] (be) -- (pg);
+  \draw[arrow] (be) -- (os);
+  \draw[arrow] (be) -- (minio);
+  \draw[arrow] (be) -- node[above, font=\footnotesize]{上传包} (scan);
+  \draw[arrow] (scan) -- node[right, font=\footnotesize]{报告} (pg);
+\end{tikzpicture}
+\end{center}
+
+\section{API 设计}
+
+\subsection{接口规范}
+
+\begin{itemize}[nosep]
+  \item RESTful 风格，统一前缀 \texttt{/api/}
+  \item 请求/响应格式：JSON
+  \item 认证方式：Bearer Token（JWT）
+  \item 分页参数：\texttt{page} + \texttt{page\_size}，默认 20 条/页
+  \item 列表响应格式：\texttt{\{items: [...], total: N, page: N, page\_size: N\}}
+  \item 错误响应格式：\texttt{\{detail: "错误描述", code: "ERROR\_CODE"\}}
+\end{itemize}
+
+\subsection{核心接口}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lllX}
+\toprule
+\textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{权限} \\
+\midrule
+POST & /api/auth/login & 登录 & 公开 \\
+POST & /api/auth/register & 注册 & 公开 \\
+POST & /api/auth/refresh & 刷新 Token & 登录 \\
+GET & /api/apps & 应用列表（分页/筛选） & 登录 \\
+POST & /api/apps & 创建应用 & 开发者 \\
+GET & /api/apps/\{id\} & 应用详情 & 登录 \\
+PUT & /api/apps/\{id\} & 更新应用 & 开发者/管理员 \\
+DELETE & /api/apps/\{id\} & 删除应用 & 管理员 \\
+POST & /api/apps/\{id\}/upload & 上传应用包 & 开发者 \\
+POST & /api/apps/\{id\}/submit & 提交应用（触发审批+扫描） & 开发者 \\
+GET & /api/search?q=\{kw\} & 搜索应用 & 登录 \\
+GET & /api/reviews & 审批列表 & 审批人/管理员 \\
+POST & /api/reviews/\{id\}/approve & 通过审批 & 审批人 \\
+POST & /api/reviews/\{id\}/reject & 驳回审批 & 审批人 \\
+POST & /api/apps/\{id\}/install & 安装应用 & 登录 \\
+GET & /api/scans/\{id\} & 查看扫描报告 & 登录 \\
+GET & /api/users & 用户列表 & 管理员 \\
+PUT & /api/users/\{id\}/role & 修改用户角色 & 管理员 \\
+GET & /health & 健康检查 & 公开 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{数据库设计}
+
+\subsection{核心表}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{表名} & \textbf{用途} & \textbf{关键字段} \\
+\midrule
+users & 用户表 & id, username, email, hashed\_password, role, is\_active, created\_at \\
+apps & 应用表 & id, name, description, version, author\_id, status, category, created\_at \\
+app\_versions & 版本表 & id, app\_id, version, package\_url, changelog, created\_at \\
+reviews & 审批记录表 & id, app\_id, reviewer\_id, decision, comment, created\_at \\
+scans & 扫描结果表 & id, app\_id, scan\_type, result (JSONB), passed, created\_at \\
+audit\_logs & 审计日志表 & id, user\_id, action, resource\_type, resource\_id, detail (JSONB), created\_at \\
+user\_app\_install & 安装关系表 & id, user\_id, app\_id, installed\_at \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{状态流转（应用）}
+
+\texttt{draft} $\to$ \texttt{submitted} $\to$ \texttt{scanning} $\to$ \texttt{pending\_review} $\to$ \texttt{published} / \texttt{rejected} $\to$ \texttt{archived}
+
+\subsection{角色枚举}
+
+\texttt{admin}（管理员）| \texttt{reviewer}（审批人）| \texttt{developer}（开发者）| \texttt{user}（普通用户）
+
+\section{前端路由设计}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{路径} & \textbf{组件} & \textbf{权限} \\
+\midrule
+/login & Login.vue & 公开 \\
+/register & Register.vue & 公开 \\
+/portal/explore & ExploreView.vue & 登录 \\
+/portal/explore/:id & AppDetailView.vue & 登录 \\
+/portal/submit & SubmitView.vue & 开发者 \\
+/portal/my-apps & MyAppsView.vue & 开发者 \\
+/portal/profile & ProfileView.vue & 登录 \\
+/admin/apps & AppManageView.vue & 管理员 \\
+/admin/apps/:id & AppEditView.vue & 管理员 \\
+/admin/reviews & ReviewView.vue & 审批人/管理员 \\
+/admin/reviews/:id & ReviewDetailView.vue & 审批人/管理员 \\
+/admin/users & UserManageView.vue & 管理员 \\
+/admin/dashboard & DashboardView.vue & 管理员 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{部署架构}
+
+\begin{itemize}[nosep]
+  \item Docker Compose 单机编排，开发/测试/生产统一
+  \item PostgreSQL 数据卷持久化
+  \item MinIO 数据卷持久化
+  \item OpenSearch 数据卷持久化
+  \item 后端通过 \texttt{uvicorn} 启动，生产环境加 \texttt{gunicorn}
+  \item 前端生产构建后由后端静态文件服务或 Nginx 托管
+\end{itemize}
+
+\section{工具链与约束}
+
+\begin{itemize}[nosep]
+  \item \textbf{开发工具链}：OpenClaw（PM AI）+ Cursor（开发 AI），Claude/Codex 暂不参与
+  \item \textbf{拍板机制}：有歧义时必须由魏子政拍板决定方向
+\end{itemize}
+
+\section{文档一致性维护规则}
+
+当 TRD 与 MASTER 总需求文档内容不一致时：
+\begin{enumerate}[nosep]
+  \item 接口定义、数据库设计、路由设计等局部不一致：以 MASTER 为主
+  \item 涉及重大流程或业务流转路径：必须由魏子政拍板决定
+  \item 新增接口或修改接口需同步更新 PRD 功能清单
+\end{enumerate}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.2 & 2026-05-06 & 对齐 MASTER v1.0：新增 submit/install 接口；补充工具链约束+文档一致性维护规则 \\
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

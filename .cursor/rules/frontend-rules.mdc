@@ -1,0 +1,38 @@
+---
+description: 前端编码规范（Vue 3 + Element Plus）
+globs: frontend/**
+alwaysApply: false
+---
+
+# 前端编码规范
+
+## 项目结构
+```
+frontend/
+├── src/
+│   ├── App.vue
+│   ├── main.js
+│   ├── router/               # Vue Router
+│   ├── stores/               # Pinia 状态管理
+│   ├── api/                  # API 调用封装（统一 axios 实例）
+│   ├── views/                # 页面组件
+│   ├── components/           # 可复用组件
+│   │   └── ui/               # 基础 UI 封装
+│   ├── styles/
+│   │   ├── variables.css     # CSS 变量
+│   │   └── global.css        # 全局样式
+│   └── utils/
+├── package.json
+├── vite.config.js
+└── Dockerfile
+```
+
+## 编码规则
+1. 组件用 `<script setup>` + TypeScript
+2. UI 组件优先用 Element Plus，不自己造
+3. API 调用放 api/ 目录，组件里不直接写 axios
+4. 样式用 CSS 变量（variables.css），不硬编码颜色值
+5. 严格遵循 @ui-design 的设计规范
+6. 路由懒加载：`() => import('@/views/xxx.vue')`
+7. 状态管理用 Pinia，不用 Vuex
+8. 国际化预留：文案用函数包裹

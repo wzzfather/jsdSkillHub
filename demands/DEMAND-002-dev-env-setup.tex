@@ -1,0 +1,193 @@
+\documentclass[11pt,a4paper]{article}
+
+% === 中文支持 ===
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+
+% === 页面布局 ===
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+
+% === 表格 ===
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+
+% === 数学符号 ===
+\usepackage{amssymb}
+
+% === 代码 ===
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\footnotesize, breaklines=true, frame=single, showstringspaces=false}
+
+% === 颜色 ===
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+
+% === 超链接 ===
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+
+% === 标题样式 ===
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+
+% === 页眉页脚 ===
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-002}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% === 文档信息 ===
+\title{\textbf{DEMAND-002：开发环境搭建与依赖安装}\\[0.5em]\small V1 阶段首个需求}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+阶段 & V1（正式需求阶段） \\
+总需求编号 & D-008 \\
+影响范围 & 项目根目录结构、Docker Compose 配置、前后端项目初始化 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求描述}
+
+搭建完整的开发环境，确保前后端项目可运行、数据库/搜索/存储服务可连接。通过 \texttt{docker compose up} 一键启动所有依赖服务，Cursor 可以直接在项目目录下开始功能开发。
+
+这是 V1 阶段的第一步，后续所有功能开发（CRUD、搜索、审批、安全扫描）都依赖本需求的完成。
+
+\section{背景与动机}
+
+V0 先备阶段已完成技术选型、智能体分工、文档体系等基础工作。但项目尚未有任何可运行的代码。需要先打通「环境搭建 $\to$ 服务启动 $\to$ 健康检查」这条链路，验证技术选型的可行性。
+
+\section{具体任务}
+
+\subsection{1. 后端项目初始化}
+
+\begin{itemize}[nosep]
+  \item 创建 Python 项目结构（FastAPI）
+  \item 安装核心依赖：fastapi, uvicorn, sqlalchemy[asyncio], asyncpg, pydantic, python-jose, passlib, alembic
+  \item 配置 SQLAlchemy async engine + session
+  \item 配置 Alembic 数据库迁移
+  \item 编写 \texttt{/health} 健康检查接口
+  \item 配置 CORS（允许前端跨域）
+\end{itemize}
+
+\subsection{2. 前端项目初始化}
+
+\begin{itemize}[nosep]
+  \item 使用 Vite 创建 Vue 3 + TypeScript 项目
+  \item 安装 Element Plus + Pinia + Vue Router
+  \item 配置 Vite 开发服务器代理（\texttt{proxy} 指向后端 API）
+  \item 创建基础页面框架（Layout + 首页）
+\end{itemize}
+
+\subsection{3. Docker Compose 编排}
+
+\begin{itemize}[nosep]
+  \item PostgreSQL 16（端口 5432）
+  \item MinIO（API 端口 9000，控制台端口 9001）
+  \item OpenSearch 2.x（端口 9200，单节点模式）
+  \item 后端 FastAPI 服务（端口 8000）
+  \item 网络和数据卷配置
+  \item \texttt{.env} 环境变量文件（数据库连接、密钥等）
+\end{itemize}
+
+\subsection{4. 环境验证}
+
+\begin{itemize}[nosep]
+  \item \texttt{docker compose up -d} 启动所有服务无报错
+  \item \texttt{curl http://localhost:8000/health} 返回 200
+  \item 前端 \texttt{http://localhost:5173} 可访问
+  \item \texttt{alembic upgrade head} 执行成功
+  \item MinIO 控制台 \texttt{http://localhost:9001} 可访问
+\end{itemize}
+
+\section{预期目录结构}
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+enterprise-app-store/
+  docker-compose.yml
+  .env.example
+  backend/
+    app/
+      main.py              # FastAPI 入口
+      config.py            # 配置
+      database.py          # SQLAlchemy async
+      models/              # ORM 模型
+      api/                 # 路由
+    alembic/               # 迁移文件
+    alembic.ini
+    requirements.txt
+  frontend/
+    src/
+      App.vue
+      main.ts
+      router/
+      stores/
+      views/
+    package.json
+    vite.config.ts
+\end{lstlisting}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[\checkmark] \texttt{pip install -r backend/requirements.txt} 全部成功
+  \item[\checkmark] \texttt{cd frontend \&\& npm install} 全部成功
+  \item[\checkmark] \texttt{curl http://localhost:8000/health} 返回 \texttt{\{\"status\":\"ok\",\"version\":\"0.1.0\"\}} (200 OK)
+  \item[\checkmark] \texttt{npx vite build} 构建成功（3.59s）
+  \item[\checkmark] docker-compose.yml 包含 postgres/minio/opensearch/backend 四个服务
+  \item[\checkmark] .env.example 环境变量完整
+  \item[\checkmark] \texttt{curl http://localhost:8000/health} returns status=ok (200 OK)
+  \item[$\square$] \texttt{docker compose up -d} 启动所有服务（待 Docker 环境验证）
+  \item[$\square$] \texttt{alembic upgrade head} 数据库迁移（待 Docker 环境验证）
+\end{itemize}
+
+\vspace{1em}
+\textit{本地验证已通过（2026-05-06）。Docker 环境验证待后续。}
+
+\section{分配方式}
+
+由 PM AI（OpenClaw）调用 Cursor Agent 执行：
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single]
+cursor agent --print --trust \
+  --workspace projects/enterprise-app-store \
+  "搭建开发环境：1.初始化后端FastAPI项目 2.初始化前端Vue3项目
+   3.编写docker-compose.yml 4.配置.env 5.验证所有服务启动正常"
+\end{lstlisting}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

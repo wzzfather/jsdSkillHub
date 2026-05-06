@@ -1,0 +1,56 @@
+---
+description: 数据库表结构设计规范
+globs: backend/**
+alwaysApply: false
+---
+
+# 数据库设计规范
+
+## 核心文档
+完整表结构设计见 @database/SCHEMA.md，建表时必须严格参照。
+
+## 命名约定
+- 表名：snake_case 复数（users, app_versions）
+- 字段名：snake_case（created_at, is_current）
+- 索引名：idx_{表名}_{字段名}（idx_apps_status）
+- 唯一索引：uq_{表名}_{字段名}
+- 外键：fk_{表名}_{关联表}
+
+## 通用字段（每张表必须有）
+```python
+id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+created_at = Column(DateTime(timezone=True), server_default=func.now())
+updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+deleted_at = Column(DateTime(timezone=True), nullable=True)  # 软删除
+```
+
+## 类型映射
+| Python | PostgreSQL | 说明 |
+|--------|-----------|------|
+| str | VARCHAR(n) / TEXT | 短文本用 VARCHAR，长文本用 TEXT |
+| int | INTEGER / BIGINT | 数量用 INTEGER，ID 关联用 BIGINT |
+| float | NUMERIC(10,2) | 金额/评分用 NUMERIC，不要用 FLOAT |
+| bool | BOOLEAN | |
+| datetime | TIMESTAMP WITH TIME ZONE | 统一 UTC |
+| UUID | UUID | 主键 |
+| dict/list | JSONB | 灵活结构（扫描报告、元数据） |
+| Enum | PostgreSQL ENUM | 用 PostgreSQL ENUM 类型，不要用 VARCHAR |
+
+## 索引策略
+- 主键自动创建索引
+- 外键字段必须建索引
+- 常用查询条件（status, category_id）必须建索引
+- JSONB 内部查询用 GIN 索引
+- 软删除表的唯一索引加条件：`WHERE deleted_at IS NULL`
+
+## 外键策略
+- 删除用户 → 级联删除用户角色（CASCADE）
+- 删除分类 → 应用分类置空（SET NULL）
+- 删除应用 → 级联删除版本/标签关联（CASCADE）
+- 删除角色 → 阻止删除（RESTRICT）
+
+## 迁移规则
+- 每次改 model 后必须生成 Alembic 迁移文件
+- 迁移文件命名：`{版本号}_{描述}.py`
+- 生产环境迁移需要先 review 迁移 SQL
+- 不允许直接改数据库，所有变更走 Alembic

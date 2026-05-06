@@ -1,0 +1,278 @@
+\documentclass[11pt,a4paper]{article}
+
+% === 中文支持 ===
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+
+% === 页面布局 ===
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+
+% === 表格 ===
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+
+% === 数学符号 ===
+\usepackage{amssymb}
+
+% === 颜色 ===
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+
+% === 超链接 ===
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+
+% === 标题样式 ===
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{primary}}{}{0em}{}
+
+% === 页眉页脚 ===
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 总需求文档}
+\fancyhead[R]{\small\color{graytext} MASTER v1.2}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% === 代码 ===
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\footnotesize, breaklines=true, frame=single, showstringspaces=false}
+
+% === 文档信息 ===
+\title{
+\vspace{-1em}
+{\Huge\bfseries\color{primary} 企业级 AI Agent 应用商店}\\[0.8em]
+{\Large\bfseries\color{accent} 总需求文档（MASTER）}\\[0.5em]
+{\large 项目全部需求的完整汇总}
+}
+\author{
+\textbf{PM AI}：万能产品小助手（OpenClaw）\\[0.3em]
+\textbf{审阅}：魏子政
+}
+\date{2026-05-06 \quad 版本 v1.0}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+文档性质 & 总需求文档（MASTER）-- 项目唯一的需求汇总 \\
+更新规则 & 每次新增/变更需求后同步更新本文件 \\
+与增量文档关系 & DEMAND-xxx 是每次需求的详细快照（冻结）；本文件是所有需求的完整汇总（活的） \\
+技术栈 & Vue 3 + Element Plus + FastAPI + PostgreSQL + MinIO + OpenSearch + JWT + Docker Compose \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\begin{abstract}
+本文件是项目唯一的总需求文档，完整汇总所有需求的全貌。每个需求均包含描述、决策、任务分解、验收标准。
+
+增量需求文档（DEMAND-xxx）记录每次需求的详细过程和决策（冻结快照），本文件汇总所有需求（活的 Backlog）。
+
+每次生成 DEMAND-xxx 后，必须同步更新本文件。
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{需求总表}
+% ============================================================
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{clp{4.5cm}cc}
+\toprule
+\textbf{编号} & \textbf{需求名称} & \textbf{摘要} & \textbf{阶段} & \textbf{状态} \\
+\midrule
+\multicolumn{5}{l}{\textbf{V0 先备阶段}} \\
+\midrule
+D-001 & 技术选型锁定 & 8 层技术栈，v1.0 精简为 v2.0 & V0 & \textcolor{success}{已完成} \\
+D-002 & 智能体分工定义 & OpenClaw=需求+验收，Cursor=前后端+UI+环境+运维+测试 & V0 & \textcolor{success}{已完成} \\
+D-003 & Skill/规则体系 & 两套智能体的上下文加载机制与文件清单 & V0 & \textcolor{success}{已完成} \\
+D-004 & 文档体系与规范 & tex-pdf 格式、命名规范、版本管理、目录结构 & V0 & \textcolor{success}{已完成} \\
+D-005 & 需求变更流程 & 5 步处理 + 3 级变更控制 + 4 级优先级 & V0 & \textcolor{success}{已完成} \\
+D-006 & 自闭环机制 & 需求/开发/测试/文档/审计 5 个闭环 & V0 & \textcolor{success}{已完成} \\
+D-007 & 开源方案调研 & Flow Nexus + Membrane，结论为自研 & V0 & \textcolor{success}{已完成} \\
+\midrule
+\multicolumn{5}{l}{\textbf{V1 正式需求阶段}} \\
+\midrule
+D-008 & 开发环境搭建 & Docker Compose + 前后端初始化 + 健康检查 & V1 & \textcolor{success}{已完成} \\
+D-009 & 任务流转路径定义 & 魏子政 $\to$ OpenClaw $\to$ Cursor 的完整链路 & V1 & \textcolor{progress}{进行中} \\
+D-010 & 多智能体协作方案 & OpenClaw/Claude/Codex/Cursor 的 skill 适配 & V1 & \textcolor{progress}{进行中} \\
+D-011 & MVP 上传+审查可视化 & Skill zip 上传 + 三层扫描 + 审批工作台 & V1 & \textcolor{success}{已完成} \\
+D-012 & 前端重新开发 & 正式 UI：市场/详情/我的应用/审批 & V1 & \textcolor{progress}{进行中} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{V0 先备阶段需求（已完成）}
+% ============================================================
+
+\subsection{D-001：技术选型锁定}
+
+\textbf{决策}：8 层技术栈锁定，v1.0 精简为 v2.0。
+\begin{itemize}[nosep]
+  \item 前端：Vue 3 + Element Plus + Vite + TypeScript + Pinia
+  \item 后端：FastAPI + SQLAlchemy (async) + Pydantic
+  \item 数据库：PostgreSQL 16（含 JSONB）
+  \item 搜索：OpenSearch 2.x
+  \item 存储：MinIO（S3 兼容）
+  \item 认证：JWT（python-jose + passlib）
+  \item 编排：Docker Compose
+  \item 迁移：Alembic
+\end{itemize}
+\textbf{淘汰项}：Next.js/React、Spring/Java、Keycloak、Temporal、Kafka、MongoDB、K8s。
+\textbf{对应文档}：DEMAND-000-v0-master, REF-002-project-master-plan。
+
+\subsection{D-002：智能体分工定义}
+
+\textbf{决策}：PM（OpenClaw）只做需求生成 + 拆解 + 独立验收。Cursor 全权负责前端（含 UI 设计）+ 后端 + 环境 + 运维 + 测试。
+\textbf{对应文档}：DEMAND-001-role-redefine。
+
+\subsection{D-003：Skill/规则体系搭建}
+
+\textbf{交付物}：
+\begin{itemize}[nosep]
+  \item OpenClaw：4 个 SKILL.md（developer/pm/tester/ui-design）+ AGENTS.md + CLAUDE.md
+  \item Cursor：1 个 CLAUDE.md + 7 个 .mdc（project-overview, backend-rules, frontend-rules, ui-design, api-conventions, testing, database）
+\end{itemize}
+
+\subsection{D-004：文档体系与规范}
+
+\textbf{交付物}：tex-pdf 格式规范、命名规则、两层需求文档结构（MASTER + DEMAND-xxx）、目录分类（reference/ 仅放外部调研，demands/ 放需求+项目规范）。
+
+\subsection{D-005：需求变更流程}
+
+\textbf{流程}：需求新增 $\to$ PM 评估 $\to$ 拆解分配 $\to$ Cursor 执行 $\to$ PM 验收。3 级变更控制（P0/P1/P2），4 级优先级。
+
+\subsection{D-006：自闭环机制}
+
+5 个闭环：需求闭环、开发闭环、测试闭环、文档闭环、审计闭环。每个闭环有明确的触发条件、执行步骤、完成标准。
+
+\subsection{D-007：开源方案调研}
+
+\textbf{调研对象}：Flow Nexus（MCP 工具调用架构）+ Membrane（中间件代理）。
+\textbf{结论}：两个方案均不完整，本项目需自研。可借鉴：分类体系、质量标准、模板部署、免密钥代理。
+
+% ============================================================
+\section{V1 正式需求阶段}
+% ============================================================
+
+\subsection{D-008：开发环境搭建与依赖安装}
+
+\textbf{状态}：已完成。
+
+\textbf{任务分解}：
+\begin{enumerate}[nosep]
+  \item 后端 FastAPI 项目初始化（main.py, config.py, database.py, /health 接口）
+  \item 前端 Vue 3 + Vite + TS 项目初始化（Element Plus, Pinia, Vue Router）
+  \item Docker Compose 编排（PostgreSQL 16 + MinIO + OpenSearch 2.x + Backend）
+  \item 环境变量模板（.env.example）
+\end{enumerate}
+
+\textbf{验收结论}：
+\begin{itemize}[nosep]
+  \item[\checkmark] pip install -r requirements.txt 成功
+  \item[\checkmark] cd frontend \&\& npm install 成功
+  \item[\checkmark] uvicorn 启动成功，/health 返回 200
+  \item[\checkmark] npm run build 构建成功（3.59s）
+  \item[\checkmark] docker-compose.yml 四个服务配置完整
+\end{itemize}
+
+\textbf{对应文档}：DEMAND-002-dev-env-setup。
+
+% ---------- D-009 ----------
+\subsection{D-009：任务流转路径定义}
+
+\textbf{状态}：进行中。
+\textbf{提出者}：魏子政。
+\textbf{优先级}：\textcolor{danger}{P0}。
+
+\textbf{需求描述}：定义魏子政（甲方）$\to$ OpenClaw（PM AI）$\to$ Cursor（开发 AI）的完整任务流转路径（7 步流程）。核心新增：
+\begin{itemize}[nosep]
+  \item \textbf{拍板机制}：有歧义时 OpenClaw 必须先让魏子政拍板，再往下走
+  \item \textbf{工具链锁定}：仅 OpenClaw + Cursor，Claude/Codex 暂不参与
+\end{itemize}
+
+\textbf{对应文档}：DEMAND-003-task-workflow（v0.2）。
+
+% ---------- D-010 ----------
+\subsection{D-010：多智能体协作方案}
+
+\textbf{状态}：进行中。
+\textbf{提出者}：魏子政。
+\textbf{优先级}：\textcolor{warning}{P1}（当前仅 OpenClaw + Cursor，Claude/Codex 暂不参与）。
+
+\textbf{需求描述}：设计多智能体 skill 适配方案。当前阶段工具链锁定为 OpenClaw + Cursor，Claude 和 Codex 作为备选，待后续需要时再接入。
+
+\textbf{对应文档}：DEMAND-004-multi-agent-collaboration。
+
+% ---------- D-011 ----------
+\subsection{D-011：MVP 开发（上传 + 审查流程可视化）}
+
+\textbf{状态}：进行中。
+\textbf{提出者}：魏子政。
+\textbf{优先级}：\textcolor{danger}{P0}。
+
+\textbf{需求描述}：开发最小化 MVP，核心目标是跑通 Skill 上传和审查流程可视化。
+
+\textbf{拍板决策}（魏子政已确认）：
+\begin{itemize}[nosep]
+  \item 三层安全扫描全上：Semgrep + ClamAV + qwen-flash（LLM 语义分析）
+  \item 审查流程：管理员在审批工作台查看三层扫描结果（通过/不通过/告警详情），手动通过或驳回
+  \item LLM 模型：通义千问 qwen-turbo（测试 API Key 已记录）
+  \item API 地址：\texttt{https://dashscope.aliyuncs.com/compatible-mode/v1}
+  \item 前端风格：黑白灰简约色系
+  \item 初始数据：虚设 skill + 管理员账号（默认全部管理员权限）
+  \item 交付物：局域网可访问地址 + 可查验的初始数据
+\end{itemize}
+
+\textbf{验收标准}：
+\begin{itemize}[nosep]
+  \item[$\square$] 用户可上传 zip 包（Skill）
+  \item[$\square$] 上传后自动触发三层扫描（Semgrep + ClamAV + qwen-flash）
+  \item[$\square$] 管理员可在审批工作台查看扫描结果详情
+  \item[$\square$] 管理员可手动通过或驳回
+  \item[$\square$] 前端黑白灰简约色系
+  \item[$\square$] 局域网可访问，初始数据可查验
+\end{itemize}
+
+\textbf{对应文档}：DEMAND-005-mvp-upload-review。
+
+% ============================================================
+\section*{更新记录}
+% ============================================================
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v1.2 & 2026-05-06 & 新增 D-011 MVP 开发（上传+审查可视化），记录拍板决策 \\
+v1.1 & 2026-05-06 & core/ 四份文档对齐 MASTER v1.0 修正（详见各文档更新记录）；新增文档一致性维护规则 \\
+v1.0 & 2026-05-06 & 重构总需求文档：每个需求含完整描述/决策/任务/验收；新增 D-009/D-010 \\
+v0.2 & 2026-05-06 & 新增 D-008 开发环境搭建（已完成） \\
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

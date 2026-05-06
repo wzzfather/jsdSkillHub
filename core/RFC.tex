@@ -1,0 +1,141 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店}
+\fancyhead[R]{\small\color{graytext} RFC}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{RFC：请求意见/技术提案}\\[0.5em]\large Request for Comments}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.2}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+文档类型 & RFC（Request for Comments） \\
+定位 & 请求意见/技术提案 -- 发出来让大家看看，有没有坑 \\
+核心问题 & 技术方案行不行得通？有没有更好的选择？ \\
+前置文档 & MRD（市场需求文档） \\
+后续文档 & TRD（技术需求文档） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{背景}
+
+MRD 确定了市场方向，PRD 确定了功能范围。本 RFC 提出技术选型和架构方案，征集意见后形成 TRD。
+
+\section{技术栈提案}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lXl}
+\toprule
+\textbf{层} & \textbf{技术选型} & \textbf{理由} \\
+\midrule
+前端框架 & Vue 3 + Element Plus & 国内部署友好，Element Plus 组件丰富，Vue 学习曲线低 \\
+构建工具 & Vite & 开发体验好，HMR 快，生态成熟 \\
+状态管理 & Pinia & Vue 3 官方推荐，TypeScript 友好 \\
+后端框架 & FastAPI & Python 生态，async 原生支持，Swagger 自动生成 \\
+ORM & SQLAlchemy 2.0 (async) & 功能全面，async 支持，Alembic 迁移集成 \\
+数据库 & PostgreSQL 16 & JSONB 灵活，关系查询强，生态成熟 \\
+搜索引擎 & OpenSearch 2.x & 全文+语义搜索，中文分词支持（IK） \\
+对象存储 & MinIO & S3 兼容，私有部署，轻量 \\
+认证 & JWT (python-jose + passlib) & 无状态，适合微服务，无需额外组件 \\
+容器编排 & Docker Compose & 开发/部署统一，轻量够用 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{架构方案}
+
+\subsection{前端架构}
+
+SPA 单页应用，分为管理后台（admin）和开发者门户（portal）两个区域。路由守卫做权限控制。API 调用统一封装 axios 实例，Pinia 管理共享状态。
+
+\subsection{后端架构}
+
+六层分层：routers（路由层）$\to$ services（业务层）$\to$ models（数据层）$\to$ schemas（模型层）$\to$ tasks（任务层）$\to$ utils（工具层）。全部 async/await。
+
+\subsection{安全扫描架构}
+
+三层扫描管道：上传 $\to$ Semgrep（静态代码）$\to$ ClamAV（恶意文件）$\to$ LLM 语义分析（权限合理性判断）$\to$ 汇总报告驱动审批。
+
+\section{讨论点}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lp{2cm}X}
+\toprule
+\textbf{编号} & \textbf{状态} & \textbf{讨论内容} \\
+\midrule
+R-001 & \textcolor{success}{已决定} & 前端选 Vue 3 而非 React/Next.js（部署友好 + 团队熟悉） \\
+R-002 & \textcolor{success}{已决定} & 后端选 FastAPI 而非 Spring（轻量 + 开发效率） \\
+R-003 & \textcolor{success}{已决定} & 认证选 JWT 而非 Keycloak（减少组件依赖） \\
+R-004 & \textcolor{success}{已决定} & 编排选 Docker Compose 而非 K8s（开发阶段够用） \\
+R-005 & \textcolor{warning}{待拍板} & LLM 语义分析用哪个模型？内网部署还是 API 调用？（需魏子政拍板） \\
+R-006 & \textcolor{warning}{待拍板} & OpenSearch 中文分词方案？IK 分词器还是其他？（需魏子政拍板） \\
+R-007 & \textcolor{success}{已决定} & 暂不需要消息队列，用 asyncio 后台任务替代（MASTER D-001 已锁定） \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{风险点}
+
+\begin{itemize}[nosep]
+  \item \textbf{OpenSearch 资源占用}：单节点模式下内存占用较高（建议 512MB-1GB）
+  \item \textbf{LLM 扫描延迟}：语义分析依赖外部模型，可能成为审批流程瓶颈
+  \item \textbf{MinIO 兼容性}：部分 S3 高级特性 MinIO 可能不完全支持
+  \item \textbf{Vue 3 生态}：相比 React，部分 UI 组件库选择较少
+\end{itemize}
+
+\section{文档一致性维护规则}
+
+当 RFC 与 MASTER 总需求文档内容不一致时：
+\begin{enumerate}[nosep]
+  \item 接口文本、技术细节等局部不一致：以 MASTER 为主
+  \item 涉及重大流程或业务流转路径：必须由魏子政拍板决定
+  \item 讨论点状态变更（如待讨论$\to$已决定）：需 MASTER 或魏子政拍板确认后更新
+\end{enumerate}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.2 & 2026-05-06 & 对齐 MASTER v1.0：R-005/R-006 改为待拍板，R-007 改为已决定；新增文档一致性维护规则 \\
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

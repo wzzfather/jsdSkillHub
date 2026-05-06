@@ -1,0 +1,171 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-005}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+\title{\textbf{DEMAND-005：MVP 开发（上传 + 审查流程可视化）}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+总需求编号 & D-011 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求描述}
+
+开发最小化 MVP，核心目标：跑通 Skill（以 zip 包形式）上传，三层安全扫描，审查流程可视化。
+
+\section{拍板决策（魏子政已确认）}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{决策项} & \textbf{决策结果} \\
+\midrule
+安全扫描层数 & 三层全上：Semgrep + ClamAV + qwen-flash（LLM 语义分析） \\
+审查流程 & 管理员在审批工作台查看三层扫描结果，手动通过或驳回 \\
+LLM 模型 & 通义千问 qwen-turbo（测试 API Key） \\
+API 地址 & https://dashscope.aliyuncs.com/compatible-mode/v1 \\
+前端风格 & 黑白灰简约色系 \\
+初始数据 & 虚设 skill + 管理员账号（默认全部管理员权限） \\
+交付要求 & 局域网可访问地址 + 可查验的初始数据 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{审查流程}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=1cm,
+  box/.style={rectangle, rounded corners, draw=primary, fill=primary!5, minimum width=2.8cm, minimum height=0.8cm, align=center, font=\small},
+  scan/.style={rectangle, rounded corners, draw=accent, fill=accent!5, minimum width=2.2cm, minimum height=0.6cm, align=center, font=\small},
+  arrow/.style={-{Stealth[length=2.5mm]}, thick, graytext}
+]
+  \node[box] (upload) {上传 Skill zip};
+  \node[scan, below left=1cm and 0.3cm of upload] (s1) {Semgrep\\静态扫描};
+  \node[scan, below=1cm of upload] (s2) {ClamAV\\恶意扫描};
+  \node[scan, below right=1cm and 0.3cm of upload] (s3) {qwen-flash\\语义分析};
+  \node[box, below=2.5cm of upload] (review) {审批工作台\\（扫描结果可视化）};
+  \node[box, below left=1cm and 0.3cm of review] (pass) {通过};
+  \node[box, below right=1cm and 0.3cm of review] (reject) {驳回};
+
+  \draw[arrow] (upload) -- (s1);
+  \draw[arrow] (upload) -- (s2);
+  \draw[arrow] (upload) -- (s3);
+  \draw[arrow] (s1) -- (review);
+  \draw[arrow] (s2) -- (review);
+  \draw[arrow] (s3) -- (review);
+  \draw[arrow] (review) -- (pass);
+  \draw[arrow] (review) -- (reject);
+\end{tikzpicture}
+\end{center}
+
+\section{具体任务}
+
+\subsection{后端}
+
+\begin{enumerate}[nosep]
+  \item 用户认证：JWT 登录/注册，种子数据创建管理员账号
+  \item Skill 上传接口：POST /api/skills/upload，接收 zip 文件，存储到 MinIO
+  \item 三层扫描服务：
+    \begin{itemize}[nosep]
+      \item Semgrep：解压 zip 后对代码文件执行静态扫描
+      \item ClamAV：对 zip 包执行恶意文件扫描
+      \item qwen-flash：提取 zip 内的关键文件（如 manifest/yaml/config），调用 qwen-turbo API 做语义分析
+    \end{itemize}
+  \item 审批接口：GET /api/reviews（列表）、POST /api/reviews/\{id\}/approve、POST /api/reviews/\{id\}/reject
+  \item Skill CRUD：GET /api/skills（列表）、GET /api/skills/\{id\}（详情含扫描报告）
+  \item 种子数据：虚设 3-5 个 Skill + 1 个管理员账号（admin/admin123）
+\end{enumerate}
+
+\subsection{前端}
+
+\begin{enumerate}[nosep]
+  \item 登录页：用户名+密码，黑白灰风格
+  \item Skill 上传页：拖拽或点击上传 zip，上传后自动跳转到审批状态
+  \item 审批工作台（核心页面）：
+    \begin{itemize}[nosep]
+      \item 待审批列表（表格形式）
+      \item 点击进入详情：展示三层扫描结果
+      \item 每层扫描结果：通过/不通过 + 告警详情（展开查看）
+      \item 操作按钮：通过 / 驳回（+ 备注）
+    \end{itemize}
+  \item Skill 列表页：已上架的 Skill 卡片展示
+\end{enumerate}
+
+\subsection{环境}
+
+\begin{enumerate}[nosep]
+  \item Docker Compose 启动所有服务
+  \item 后端绑定 0.0.0.0:8000（局域网可访问）
+  \item 前端绑定 0.0.0.0:5173（局域网可访问）
+  \item ClamAV 安装到后端 Docker 镜像或作为独立服务
+\end{enumerate}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[$\square$] 管理员账号 admin/admin123 可登录
+  \item[$\square$] 上传 zip 包后自动触发三层扫描
+  \item[$\square$] 审批工作台可查看三层扫描结果详情
+  \item[$\square$] 管理员可通过/驳回
+  \item[$\square$] 前端黑白灰简约色系
+  \item[$\square$] 虚设 Skill 和管理员账号可查验
+  \item[$\square$] 局域网地址可访问（后端 8000，前端 5173）
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

@@ -1,0 +1,155 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-006}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{DEMAND-006：前端重新开发（正式 UI）}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+总需求编号 & D-012 \\
+前置需求 & D-011（MVP 后端已完成） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求背景}
+
+D-011 MVP 阶段后端三层扫描已跑通，但前端仍为演示级别。需要按照 PRD 和 MASTER 总需求重新开发前端，达到正式应用商店的交互体验。
+
+\section{当前问题}
+
+\begin{enumerate}[nosep]
+  \item 浏览页只有纯文本卡片，缺少搜索栏、分类标签、筛选排序
+  \item 没有 Skill 详情页（PRD F-004）
+  \item 没有用户认证页面（登录/注册，PRD F-001 前端部分已有但需优化）
+  \item 没有"我的应用"页（开发者查看自己提交的 Skill 状态）
+  \item 流程看板只是步骤说明，不是真正的管理界面
+  \item 审批工作台功能正确但视觉粗糙，需优化
+  \item 上传页缺少 ClamAV 展示和扫描进度反馈
+\end{enumerate}
+
+\section{页面清单与交互规格}
+
+后端 API 保持不变，仅重新开发前端。色系：黑白灰简约。
+
+\subsection{P0 页面（本次交付）}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llp{6cm}}
+\toprule
+\textbf{路由} & \textbf{页面} & \textbf{交互规格} \\
+\midrule
+/login & 登录页 & 用户名+密码，黑白灰，居中卡片，登录后跳转首页 \\
+/register & 注册页 & 用户名+密码+确认密码，注册后自动登录跳转首页 \\
+/explore & 应用市场（首页） & 顶部搜索栏 + 分类标签横排（全部/productivity/security/support/knowledge 等）+ 卡片网格（每张卡片：名称、版本、分类标签、简介、作者）+ 分页 \\
+/explore/:id & Skill 详情 & 名称、版本、分类、描述、作者、提交时间、扫描结果摘要（三层通过状态）、安装按钮（MVP 阶段按钮展示即可） \\
+/submit & 提交应用 & 分步表单：第一步填写名称/版本/描述/分类，第二步拖拽上传 zip，提交后显示扫描进度轮询 \\
+/my-apps & 我的应用 & 表格展示当前用户提交的所有 Skill，列：名称/版本/状态标签（扫描中/待审批/已上架/已驳回）/操作（查看详情） \\
+/review & 审批工作台 & 待审批列表表格 + 点击详情抽屉（三层扫描结果 + 通过/驳回按钮+备注输入框） \\
+/dashboard & 首页看板 & KPI 卡片（总数/扫描中/待审批/已上架/已驳回）+ 快捷入口 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{导航结构}
+
+\begin{itemize}[nosep]
+  \item 顶部导航栏：左侧品牌名"Skill Store"，右侧导航按钮
+  \item 未登录：浏览、登录、注册
+  \item 已登录：浏览、提交应用、我的应用、审批工作台（仅管理员）、退出
+  \item 导航按钮当前页高亮
+\end{itemize}
+
+\subsection{交互细节}
+
+\textbf{应用市场}：
+\begin{itemize}[nosep]
+  \item 默认显示全部，点击分类标签筛选
+  \item 搜索栏输入关键词实时筛选（前端过滤即可，MVP 阶段不接 OpenSearch）
+  \item 卡片点击跳转详情页
+  \item 底部分页（每页 12 个）
+\end{itemize}
+
+\textbf{审批工作台}：
+\begin{itemize}[nosep]
+  \item 需要管理员权限，非管理员显示提示
+  \item 表格列：Skill 名称、版本、分类、扫描摘要（Semgrep/ClamAV/LLM 各显示通过或警告图标）、提交时间、操作
+  \item 点击行展开右侧抽屉（Drawer），显示三层扫描结果详情
+  \item 每层扫描结果：通过/不通过标签 + 告警详情（JSON 格式化展示）
+  \item 底部：通过按钮、驳回按钮、备注输入框
+\end{itemize}
+
+\textbf{提交应用}：
+\begin{itemize}[nosep]
+  \item 需要登录，未登录跳转登录页
+  \item 两步：先填表单，再上传 zip
+  \item 上传后自动轮询扫描状态，展示三层扫描进度
+  \item 扫描完成后提示"已进入审批队列"
+\end{itemize}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[$\square$] 登录/注册流程完整可用
+  \item[$\square$] 应用市场：卡片网格 + 分类筛选 + 搜索 + 分页
+  \item[$\square$] Skill 详情页：完整信息展示
+  \item[$\square$] 提交应用：分步表单 + zip 上传 + 扫描进度展示
+  \item[$\square$] 我的应用：当前用户提交列表 + 状态标签
+  \item[$\square$] 审批工作台：三层扫描结果可视化 + 通过/驳回
+  \item[$\square$] 首页看板：KPI 统计卡片
+  \item[$\square$] 黑白灰简约色系，整体风格统一
+  \item[$\square$] 局域网可访问
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

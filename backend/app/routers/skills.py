@@ -1,0 +1,168 @@
+from __future__ import annotations
+
+import logging
+import os
+import tempfile
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from app.database import AsyncSessionLocal, get_db
+from app.dependencies import get_current_user, get_current_user_optional
+from app.models.scan_result import ScanResult
+from app.models.skill import Skill
+from app.models.skill_version import SkillVersion
+from app.models.user import User
+from app.schemas.common import PaginatedSkills, ScanLayerSummary, SkillDetailResponse, SkillResponse
+from app.services import scan_service
+from app.utils.minio_client import upload_bytes
+
+router = APIRouter(prefix="/skills", tags=["skills"])
+logger = logging.getLogger(__name__)
+
+
+def _clamp_page_size(page_size: int) -> int:
+    return max(1, min(page_size, 100))
+
+
+@router.get("", response_model=PaginatedSkills)
+async def list_skills(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = 1,
+    page_size: int = 20,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+) -> PaginatedSkills:
+    page_size = _clamp_page_size(page_size)
+    if page < 1:
+        page = 1
+
+    stmt = select(Skill)
+    count_stmt = select(func.count()).select_from(Skill)
+
+    effective_status = status_filter if status_filter is not None else "published"
+    stmt = stmt.where(Skill.status == effective_status)
+    count_stmt = count_stmt.where(Skill.status == effective_status)
+
+    total = int(await db.scalar(count_stmt) or 0)
+    stmt = stmt.order_by(Skill.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.scalars(stmt)).all()
+    items = [SkillResponse.model_validate(r) for r in rows]
+    return PaginatedSkills(items=items, total=total, page=page, page_size=page_size)
+
+
+async def _run_scan_job(skill_id: str, zip_path: str) -> None:
+    path = Path(zip_path)
+    async with AsyncSessionLocal() as session:
+        try:
+            await scan_service.execute_three_layer_scan(session, skill_id, path)
+        except Exception:
+            logger.exception("后台扫描失败 skill_id=%s", skill_id)
+            skill = await session.get(Skill, skill_id)
+            if skill:
+                skill.status = "pending_review"
+                session.add(
+                    ScanResult(
+                        skill_id=skill_id,
+                        scan_type="system",
+                        result={"error": "scan_job_failed"},
+                        passed=False,
+                    )
+                )
+                await session.commit()
+        finally:
+            path.unlink(missing_ok=True)
+
+
+@router.post("/upload", response_model=SkillResponse)
+async def upload_skill(
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    file: Annotated[UploadFile, File(description="Skill zip 包")],
+    name: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+    version: Annotated[str, Form()] = "1.0.0",
+    category: Annotated[str | None, Form()] = None,
+) -> Skill:
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "请上传 .zip 文件", "code": "INVALID_ARCHIVE"},
+        )
+    raw = await file.read()
+    if len(raw) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "空文件", "code": "EMPTY_FILE"},
+        )
+
+    skill = Skill(
+        name=name.strip(),
+        description=description,
+        version=version.strip(),
+        author_id=current_user.id,
+        status="scanning",
+        category=category,
+        package_url=None,
+    )
+    db.add(skill)
+    await db.flush()
+
+    key = f"skills/{skill.id}/{version}.zip"
+    package_url = await upload_bytes(key, raw)
+    skill.package_url = package_url
+
+    db.add(
+        SkillVersion(
+            skill_id=skill.id,
+            version=version.strip(),
+            package_url=package_url,
+            changelog=None,
+        )
+    )
+    await db.commit()
+    await db.refresh(skill)
+
+    fd, tmp_path = tempfile.mkstemp(prefix=f"skill_{skill.id}_", suffix=".zip")
+    os.close(fd)
+    Path(tmp_path).write_bytes(raw)
+
+    background_tasks.add_task(_run_scan_job, str(skill.id), tmp_path)
+    return skill
+
+
+@router.get("/{skill_id}", response_model=SkillDetailResponse)
+async def get_skill(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User | None, Depends(get_current_user_optional)],
+) -> SkillDetailResponse:
+    stmt = (
+        select(Skill)
+        .options(selectinload(Skill.scan_results))
+        .where(Skill.id == skill_id)
+    )
+    skill = (await db.scalars(stmt)).first()
+    if skill is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"detail": "未找到", "code": "NOT_FOUND"})
+
+    if skill.status != "published":
+        if current_user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail={"detail": "需要登录", "code": "AUTH"})
+        if current_user.role != "admin" and skill.author_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"detail": "无权访问", "code": "FORBIDDEN"})
+
+    scans = [
+        ScanLayerSummary(
+            scan_type=s.scan_type,
+            passed=s.passed,
+            result=s.result,
+            created_at=s.created_at,
+        )
+        for s in sorted(skill.scan_results, key=lambda x: x.scan_type)
+    ]
+    base = SkillResponse.model_validate(skill)
+    return SkillDetailResponse(**base.model_dump(), scans=scans)

@@ -1,0 +1,160 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店}
+\fancyhead[R]{\small\color{graytext} MRD}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{MRD：市场需求文档}\\[0.5em]\large Market Requirements Document}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.2}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+文档类型 & MRD（Market Requirements Document） \\
+定位 & 市场需求文档 -- 先想清楚再做 \\
+核心问题 & 这东西有没有人要？市场有多大？竞品是什么？ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{产品定位}
+
+企业级 AI Agent 应用商店：面向企业内部的 AI Agent/技能/Skill 统一管理平台。企业提供 Agent，员工发现、安装、使用，管理员审批、监控、审计。
+
+\section{目标用户}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lXX}
+\toprule
+\textbf{角色} & \textbf{是谁} & \textbf{核心诉求} \\
+\midrule
+管理员 & IT/运维部门 & 统一管控所有 Agent，安全合规，审计追溯 \\
+审批人 & 安全团队/技术负责人 & 审核提交的 Agent 是否安全可用 \\
+开发者 & 内部各业务团队 & 提交自己开发的 Agent，版本管理，数据统计 \\
+普通用户 & 全体员工 & 发现好用的 Agent，一键安装，简单上手 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{市场与需求分析}
+
+\subsection{痛点}
+
+\begin{enumerate}[nosep]
+  \item 企业内部 AI Agent 越来越多，分散在各处，没有统一入口
+  \item 缺乏安全审核机制，Agent 权限和行为不可控
+  \item 员工不知道有哪些 Agent 可用，重复开发严重
+  \item 缺乏版本管理和质量标准，Agent 更新无追踪
+  \item 没有使用数据统计，无法衡量 Agent 的实际价值
+\end{enumerate}
+
+\subsection{市场现状}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lXXX}
+\toprule
+\textbf{方案} & \textbf{类型} & \textbf{优势} & \textbf{不足} \\
+\midrule
+Flow Nexus & 开源 Skill 商店 & MCP 架构，模板部署 & 不完整，无审批流，无安全扫描 \\
+Membrane & 开源中间件 & 免密钥代理，40+ 模型 & 偏基础设施，非应用商店 \\
+ChatGPT GPT Store & SaaS & 用户量大，生态成熟 & 不适合企业私有部署 \\
+LangChain Hub & 开源组件库 & 社区活跃 & 非 Agent 商店，无审批审计 \\
+自建 & 定制开发 & 完全可控 & 需要投入开发资源 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{结论}
+
+现有开源方案均不满足企业级需求（审批工作流、三层安全扫描、企业 RBAC、审计追溯）。本项目需自研，借鉴开源方案的分类体系和部署思路。
+
+\section{市场价值}
+
+\begin{itemize}[nosep]
+  \item \textbf{安全合规}：统一入口 + 审批流 + 安全扫描，降低 Agent 安全风险
+  \item \textbf{效率提升}：员工快速发现和使用 Agent，避免重复造轮子
+  \item \textbf{可观测}：使用数据统计 + 审计日志，管理层能看到 Agent 的实际价值
+  \item \textbf{标准化}：统一的质量标准和发布流程，提升 Agent 整体质量
+\end{itemize}
+
+\section{竞品分析要点}
+
+\begin{itemize}[nosep]
+  \item GPT Store：C 端导向，无企业审批/审计能力
+  \item AWS Bedrock Marketplace：重量级，与 AWS 强绑定
+  \item Hugging Face Spaces：偏模型/数据集，非 Agent 管理
+  \item 自研方案（如字节内部 Agent 平台）：不对外开放
+\end{itemize}
+
+\section{工具链与协作模式}
+
+\begin{itemize}[nosep]
+  \item \textbf{开发工具链}：OpenClaw（PM AI）+ Cursor（开发 AI），Claude/Codex 暂不参与
+  \item \textbf{协作模式}：魏子政（甲方）$\to$ OpenClaw（PM）$\to$ Cursor（开发），单线沟通
+  \item \textbf{拍板机制}：有歧义的环节，OpenClaw 必须先让魏子政拍板决定方向
+\end{itemize}
+
+\section{目标指标}
+
+\begin{itemize}[nosep]
+  \item 覆盖企业内部所有 AI Agent 的统一管理
+  \item 从提交到上架全流程 $\leq$ 48 小时（P0 Agent）
+  \item 安全扫描覆盖率 100\%
+  \item 用户从发现到安装 $\leq$ 3 次点击
+\end{itemize}
+
+\section{文档一致性维护规则}
+
+当 core/ 文档与 MASTER 总需求文档内容不一致时，按以下规则处理：
+\begin{enumerate}[nosep]
+  \item \textbf{接口文本、功能描述、技术细节等局部不一致}：以 MASTER 总需求文档为主，core/ 文档同步修正
+  \item \textbf{涉及重大流程或业务流转路径的问题}：必须由魏子政拍板决定方向，PM 不得自行假设
+  \item \textbf{MASTER 未覆盖但 core/ 文档已定义的内容}：保留 core/ 文档内容，同步补充到 MASTER
+  \item 每次修正后，同步更新 MASTER 和对应 core/ 文档的版本号
+\end{enumerate}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.2 & 2026-05-06 & 对齐 MASTER v1.0：补充工具链锁定+拍板机制说明；新增文档一致性维护规则 \\
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}
