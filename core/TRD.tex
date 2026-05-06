@@ -32,7 +32,7 @@
 
 \title{\textbf{TRD：技术需求文档}\\[0.5em]\large Technical Requirements Document}
 \author{万能产品小助手（PM AI）\\魏子政 审阅}
-\date{2026-05-06 / 版本 v1.0}
+\date{2026-05-06 / 版本 v1.1}
 
 \begin{document}
 
@@ -170,6 +170,22 @@ offline --> pending_review（管理员重新上架）
 rejected --> pending_review（开发者重新提交）
 \end{verbatim}
 
+\subsection{其他接口}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lllX}
+\toprule
+\textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{权限} \\
+\midrule
+GET & /api/scans/\{id\} & 查看单个 Skill 的扫描报告 & 登录 \\
+GET & /api/workflow/steps & 获取工作流步骤定义（静态） & 登录 \\
+GET & /api/workflow/overview & 获取各状态 Skill 数量统计 & 登录 \\
+GET & /health & 健康检查 & 公开 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \section{前端路由（已实现）}
 
 \begin{table}[h]
@@ -211,12 +227,23 @@ rejected --> pending_review（开发者重新提交）
   \item \textbf{文档一致性}：TRD 与 MASTER 不一致时，接口/数据库以实际代码为准，重大变更需拍板
 \end{itemize}
 
+\section{文档一致性维护规则}
+
+当 TRD 与 MASTER 总需求文档内容不一致时，按以下规则处理：
+\begin{enumerate}[nosep]
+  \item \textbf{接口定义、数据库设计等局部不一致}：以 MASTER 总需求文档为主，TRD 同步修正
+  \item \textbf{涉及重大流程或业务流转路径的问题}：必须由魏子政拍板决定方向，PM 不得自行假设
+  \item \textbf{新增接口或修改接口}：需同步更新 PRD 功能清单和 MASTER 需求表
+  \item 每次修正后，同步更新 MASTER、PRD 和 TRD 的版本号
+\end{enumerate}
+
 \section*{更新记录}
 
 \begin{tabular}{lll}
 \toprule
 版本 & 日期 & 变更内容 \\
 \midrule
+v1.1 & 2026-05-06 & 补充scans/workflow/health接口；Skill列表参数细化；审批接口权限明确；新增文档一致性维护规则 \\
 v1.0 & 2026-05-06 & 全面重写：API 接口更新为实际路径（/api/skills/*），新增认证接口（send-code/verify-email）、生命周期接口（offline/resubmit/republish）、管理员接口（admin/all），数据库表新增 email/email\_verified/offline\_comment，路由更新为实际路由 \\
 v0.2 & 2026-05-06 & 新增 submit/install 接口 \\
 v0.1 & 2026-05-06 & 初始版本 \\
