@@ -30,7 +30,7 @@ from app.schemas.common import (
     SkillResponse,
 )
 from app.services import scan_service
-from app.services.skill_package_service import install_skill_to_openclaw, package_object_key
+from app.services.skill_package_service import install_skill_to_openclaw, install_skill_with_npm_to_openclaw, package_object_key
 from app.utils.minio_client import generate_download_url, upload_bytes
 
 router = APIRouter(prefix="/skills", tags=["skills"])
@@ -367,7 +367,36 @@ async def install_skill_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"detail": "安装失败", "code": "INSTALL_FAILED"},
         )
-    return InstallResponse(message="安装成功", path=path_str)
+    return InstallResponse(message="安装成功", path=path_str, npm_installed=False)
+
+
+@router.post("/{skill_id}/install-npm", response_model=InstallResponse)
+async def install_skill_npm_endpoint(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> InstallResponse:
+    _ = current_user
+    skill = _require_published_package(await db.get(Skill, skill_id))
+    try:
+        path_str, npm_installed = await install_skill_with_npm_to_openclaw(skill)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": str(e), "code": "INSTALL_FAILED"},
+        ) from e
+    except Exception:
+        logger.exception("npm 安装 Skill 失败 skill_id=%s", skill_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"detail": "安装失败", "code": "INSTALL_FAILED"},
+        )
+    msg = (
+        "安装成功，已执行 npm install --production"
+        if npm_installed
+        else "安装成功（包内未检测到 package.json，未执行 npm）"
+    )
+    return InstallResponse(message=msg, path=path_str, npm_installed=npm_installed)
 
 
 @router.get("/{skill_id}", response_model=SkillDetailResponse)

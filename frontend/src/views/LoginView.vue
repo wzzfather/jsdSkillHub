@@ -8,8 +8,11 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 
+const loginMode = ref<"username" | "email">("username");
+
 const form = reactive({
   username: "",
+  email: "",
   password: "",
 });
 
@@ -18,7 +21,23 @@ const loading = ref(false);
 async function onSubmit() {
   loading.value = true;
   try {
-    await auth.login(form.username.trim(), form.password);
+    if (loginMode.value === "username") {
+      const u = form.username.trim();
+      if (!u) {
+        ElMessage.warning("请填写用户名");
+        loading.value = false;
+        return;
+      }
+      await auth.login({ username: u, password: form.password });
+    } else {
+      const em = form.email.trim();
+      if (!em) {
+        ElMessage.warning("请填写邮箱");
+        loading.value = false;
+        return;
+      }
+      await auth.login({ email: em, password: form.password });
+    }
     ElMessage.success("登录成功");
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "";
     await router.replace(redirect && redirect.startsWith("/") ? redirect : "/explore");
@@ -33,9 +52,12 @@ function text(key: string) {
   const map: Record<string, string> = {
     title: "登录",
     user: "用户名",
+    email: "邮箱",
     pass: "密码",
     btn: "登录",
     hint: "没有账号？去注册",
+    modeUser: "用户名登录",
+    modeEmail: "邮箱登录",
   };
   return map[key] ?? key;
 }
@@ -62,10 +84,22 @@ function text(key: string) {
 
       <h1 class="title">{{ text("title") }}</h1>
 
+      <el-radio-group v-model="loginMode" class="mode-switch" size="large">
+        <el-radio-button label="username">{{ text("modeUser") }}</el-radio-button>
+        <el-radio-button label="email">{{ text("modeEmail") }}</el-radio-button>
+      </el-radio-group>
+
       <el-form label-position="top" class="auth-form" @submit.prevent="onSubmit">
-        <el-form-item :label="text('user')">
-          <el-input v-model="form.username" class="auth-input" autocomplete="username" />
-        </el-form-item>
+        <template v-if="loginMode === 'username'">
+          <el-form-item :label="text('user')">
+            <el-input v-model="form.username" class="auth-input" autocomplete="username" />
+          </el-form-item>
+        </template>
+        <template v-else>
+          <el-form-item :label="text('email')">
+            <el-input v-model="form.email" class="auth-input" type="email" autocomplete="email" />
+          </el-form-item>
+        </template>
         <el-form-item :label="text('pass')">
           <el-input v-model="form.password" class="auth-input" type="password" autocomplete="current-password" />
         </el-form-item>
@@ -130,6 +164,37 @@ function text(key: string) {
   font-weight: 700;
   text-align: center;
   color: var(--app-text);
+}
+
+.mode-switch {
+  display: flex;
+  width: 100%;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.mode-switch :deep(.el-radio-button__inner) {
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  color: var(--app-text);
+  border-color: var(--app-border-strong);
+  background: var(--app-surface);
+  box-shadow: none;
+}
+
+.mode-switch :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.mode-switch :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.mode-switch :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: #fff;
+  box-shadow: none;
 }
 
 .auth-form {

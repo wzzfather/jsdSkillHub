@@ -30,8 +30,8 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function login(username: string, password: string) {
-    const { data } = await loginRequest({ username, password });
+  async function login(payload: { username?: string; email?: string; password: string }) {
+    const { data } = await loginRequest(payload);
     setToken(data.access_token);
     await ensureAdmin();
   }

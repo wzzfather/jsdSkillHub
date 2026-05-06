@@ -42,7 +42,7 @@ async function onSubmit() {
     if (data.email && !data.email_verified) {
       await router.replace({ name: "verify-email", query: { email: data.email } });
     } else {
-      await auth.login(form.username.trim(), form.password);
+      await auth.login({ username: form.username.trim(), password: form.password });
       await router.replace("/explore");
     }
   } catch {

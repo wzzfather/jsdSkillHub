@@ -1,8 +1,12 @@
 import { api } from "./client";
-import type { ReviewPendingItem } from "./types";
+import type { ReviewPendingItem, ReviewSourceStats } from "./types";
 
 export async function fetchPendingReviews() {
   return api.get<ReviewPendingItem[]>("/reviews");
+}
+
+export async function fetchReviewSourceStats() {
+  return api.get<ReviewSourceStats>("/reviews/source-stats");
 }
 
 export async function approveSkill(skillId: string, comment?: string) {

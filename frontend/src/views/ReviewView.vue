@@ -1,19 +1,29 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { CircleCheck, CircleClose } from "@element-plus/icons-vue";
-import { approveSkill as approveSkillApi, fetchPendingReviews, rejectSkill as rejectSkillApi } from "@/api/reviews";
-import type { ReviewPendingItem, ScanLayer, Skill } from "@/api/types";
+import {
+  approveSkill as approveSkillApi,
+  fetchPendingReviews,
+  fetchReviewSourceStats,
+  rejectSkill as rejectSkillApi,
+} from "@/api/reviews";
+import type { ReviewPendingItem, ScanLayer } from "@/api/types";
 
 const loading = ref(false);
 const forbidden = ref(false);
 const rows = ref<ReviewPendingItem[]>([]);
 
+const sourceStats = reactive({
+  new_upload: 0,
+  resubmit: 0,
+  republish: 0,
+});
+
 const drawer = ref(false);
 const current = ref<ReviewPendingItem | null>(null);
 const comment = ref("");
 
-const tableRows = computed(() => rows.value.map((r) => r.skill));
 const pendingCount = computed(() => rows.value.length);
 
 function formatTime(iso?: string | null) {
@@ -58,29 +68,48 @@ function layerAccent(t: string) {
   return "accent-llm";
 }
 
+function sourceLabel(src?: string | null) {
+  if (src === "new_upload") return "新上传";
+  if (src === "resubmit") return "重新提交";
+  if (src === "republish") return "重新上架";
+  return "—";
+}
+
+function sourceTagType(src?: string | null): "info" | "warning" | "success" {
+  if (src === "resubmit") return "warning";
+  if (src === "republish") return "success";
+  return "info";
+}
+
 async function reload() {
   loading.value = true;
   forbidden.value = false;
   try {
-    const { data } = await fetchPendingReviews();
-    rows.value = data;
+    const [listRes, statsRes] = await Promise.all([fetchPendingReviews(), fetchReviewSourceStats()]);
+    rows.value = listRes.data;
+    sourceStats.new_upload = statsRes.data.new_upload;
+    sourceStats.resubmit = statsRes.data.resubmit;
+    sourceStats.republish = statsRes.data.republish;
   } catch (e: unknown) {
     const err = e as { response?: { status?: number } };
     if (err.response?.status === 403) forbidden.value = true;
+    rows.value = [];
+    sourceStats.new_upload = 0;
+    sourceStats.resubmit = 0;
+    sourceStats.republish = 0;
     ElMessage.error("加载审批列表失败");
   } finally {
     loading.value = false;
   }
 }
 
-function openDetail(row: Skill) {
-  const hit = rows.value.find((r) => r.skill.id === row.id);
-  current.value = hit || null;
+function openDetail(row: ReviewPendingItem) {
+  current.value = row;
   comment.value = "";
   drawer.value = true;
 }
 
-function onRowClick(row: Skill) {
+function onRowClick(row: ReviewPendingItem) {
   openDetail(row);
 }
 
@@ -134,24 +163,28 @@ onMounted(() => void reload());
     <el-alert v-if="forbidden" type="warning" show-icon title="需要管理员权限" description="请使用管理员账号登录后再访问。" />
 
     <el-row v-else class="stats" :gutter="16">
-      <el-col :xs="24" :md="8">
+      <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-kpi">{{ pendingCount }}</div>
           <div class="stat-label muted">待审批（当前队列）</div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :md="8">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-kpi muted">—</div>
-          <div class="stat-label muted">本月已审</div>
-          <div class="stat-hint muted">统计报表接入后即可展示。</div>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <el-card shadow="never" class="stat-card stat-card-muted">
+          <div class="stat-kpi">{{ sourceStats.new_upload }}</div>
+          <div class="stat-label muted">新上传</div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :md="8">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-kpi muted">—</div>
-          <div class="stat-label muted">通过率</div>
-          <div class="stat-hint muted">统计报表接入后即可展示。</div>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <el-card shadow="never" class="stat-card stat-card-muted">
+          <div class="stat-kpi">{{ sourceStats.resubmit }}</div>
+          <div class="stat-label muted">重新提交</div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <el-card shadow="never" class="stat-card stat-card-muted">
+          <div class="stat-kpi">{{ sourceStats.republish }}</div>
+          <div class="stat-label muted">重新上架</div>
         </el-card>
       </el-col>
     </el-row>
@@ -159,49 +192,48 @@ onMounted(() => void reload());
     <el-card v-if="!forbidden" class="table-card" shadow="never">
       <el-table
         v-loading="loading"
-        :data="tableRows"
+        :data="rows"
         stripe
         class="review-table"
         style="width: 100%"
         @row-click="onRowClick"
       >
-        <el-table-column prop="name" label="名称" min-width="200" />
-        <el-table-column prop="version" label="版本" width="110" />
-        <el-table-column prop="category" label="分类" width="140">
-          <template #default="{ row }">{{ row.category || "—" }}</template>
+        <el-table-column label="名称" min-width="180">
+          <template #default="{ row }">{{ row.skill.name }}</template>
+        </el-table-column>
+        <el-table-column label="版本" width="110">
+          <template #default="{ row }">{{ row.skill.version }}</template>
+        </el-table-column>
+        <el-table-column label="分类" width="120">
+          <template #default="{ row }">{{ row.skill.category || "—" }}</template>
+        </el-table-column>
+        <el-table-column label="来源" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.source" size="small" :type="sourceTagType(row.source)">{{ sourceLabel(row.source) }}</el-tag>
+            <span v-else class="muted">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="提交者" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="muted">{{ row.author_username || "—" }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="扫描摘要" min-width="220">
           <template #default="{ row }">
             <div class="icons">
               <span class="ico" title="Semgrep">
-                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'ok'" class="ok"
-                  ><CircleCheck
-                /></el-icon>
-                <el-icon
-                  v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'bad'"
-                  class="bad"
-                  ><CircleClose
-                /></el-icon>
+                <el-icon v-if="scanCellState(row.scans, 'semgrep') === 'ok'" class="ok"><CircleCheck /></el-icon>
+                <el-icon v-else-if="scanCellState(row.scans, 'semgrep') === 'bad'" class="bad"><CircleClose /></el-icon>
                 <span v-else class="muted tiny">—</span>
               </span>
               <span class="ico" title="ClamAV">
-                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'ok'" class="ok"
-                  ><CircleCheck
-                /></el-icon>
-                <el-icon
-                  v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'bad'"
-                  class="bad"
-                  ><CircleClose
-                /></el-icon>
+                <el-icon v-if="scanCellState(row.scans, 'clamav') === 'ok'" class="ok"><CircleCheck /></el-icon>
+                <el-icon v-else-if="scanCellState(row.scans, 'clamav') === 'bad'" class="bad"><CircleClose /></el-icon>
                 <span v-else class="muted tiny">—</span>
               </span>
               <span class="ico" title="LLM">
-                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'ok'" class="ok"
-                  ><CircleCheck
-                /></el-icon>
-                <el-icon v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'bad'" class="bad"
-                  ><CircleClose
-                /></el-icon>
+                <el-icon v-if="scanCellState(row.scans, 'llm') === 'ok'" class="ok"><CircleCheck /></el-icon>
+                <el-icon v-else-if="scanCellState(row.scans, 'llm') === 'bad'" class="bad"><CircleClose /></el-icon>
                 <span v-else class="muted tiny">—</span>
               </span>
             </div>
@@ -209,7 +241,7 @@ onMounted(() => void reload());
         </el-table-column>
         <el-table-column label="提交时间" min-width="170">
           <template #default="{ row }">
-            <span class="muted">{{ formatTime(row.created_at) }}</span>
+            <span class="muted">{{ formatTime(row.skill.created_at) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
@@ -224,7 +256,11 @@ onMounted(() => void reload());
       <template v-if="current">
         <div class="detail-head">
           <div class="detail-title">{{ current.skill.name }}</div>
-          <div class="muted">v{{ current.skill.version }} · {{ current.skill.category || "未分类" }}</div>
+          <div class="muted detail-sub">v{{ current.skill.version }} · {{ current.skill.category || "未分类" }}</div>
+          <div class="detail-meta">
+            <el-tag v-if="current.source" size="small" :type="sourceTagType(current.source)">{{ sourceLabel(current.source) }}</el-tag>
+            <span class="detail-author muted">提交者：{{ current.author_username || "—" }}</span>
+          </div>
         </div>
 
         <div v-for="s in sortedScans(current.scans)" :key="s.scan_type" class="scan-layer-card card-panel" :class="layerAccent(s.scan_type)">
@@ -285,6 +321,10 @@ onMounted(() => void reload());
 
 .stat-card :deep(.el-card__body) {
   padding: 18px 16px;
+}
+
+.stat-card-muted :deep(.el-card__body) {
+  background: var(--app-bg);
 }
 
 .stat-kpi {
@@ -354,6 +394,22 @@ onMounted(() => void reload());
 .detail-title {
   font-size: 18px;
   font-weight: 800;
+}
+
+.detail-sub {
+  margin-top: 4px;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.detail-author {
+  font-size: 13px;
 }
 
 .scan-layer-card {

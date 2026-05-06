@@ -40,11 +40,20 @@ export interface DownloadResponse {
 export interface InstallResponse {
   message: string;
   path: string;
+  npm_installed: boolean;
 }
 
 export interface ReviewPendingItem {
   skill: Skill;
   scans: ScanLayer[];
+  source?: string | null;
+  author_username?: string | null;
+}
+
+export interface ReviewSourceStats {
+  new_upload: number;
+  resubmit: number;
+  republish: number;
 }
 
 export interface WorkflowStep {

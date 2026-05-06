@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 class TokenResponse(BaseModel):
@@ -9,8 +11,31 @@ class TokenResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=64)
+    """登录标识：邮箱优先校验；仅用户名登录时需 username 非空（min_length=1）。"""
+
+    username: str = Field(default="", max_length=64)
     password: str = Field(min_length=1, max_length=128)
+    email: str | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def empty_login_email_as_none(cls, v: object) -> object:
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+    @model_validator(mode="after")
+    def username_or_email_required(self) -> LoginRequest:
+        has_email = self.email is not None and str(self.email).strip()
+        u = self.username.strip() if self.username else ""
+        if has_email:
+            return self
+        if len(u) < 1:
+            raise ValueError("必须提供用户名或邮箱")
+        self.username = u
+        return self
 
 
 class RegisterRequest(BaseModel):
@@ -110,6 +135,14 @@ class PaginatedAdminSkills(BaseModel):
 class ReviewPendingItem(BaseModel):
     skill: SkillResponse
     scans: list[ScanLayerSummary]
+    source: str | None = None  # new_upload | resubmit | republish
+    author_username: str | None = None
+
+
+class ReviewSourceStatsResponse(BaseModel):
+    new_upload: int
+    resubmit: int
+    republish: int
 
 
 class ReviewActionRequest(BaseModel):
@@ -136,6 +169,7 @@ class DownloadResponse(BaseModel):
 class InstallResponse(BaseModel):
     message: str
     path: str
+    npm_installed: bool = False
 
 
 class WorkflowStep(BaseModel):

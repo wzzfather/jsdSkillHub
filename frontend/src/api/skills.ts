@@ -44,6 +44,10 @@ export async function installSkill(id: string) {
   return api.post<InstallResponse>(`/skills/${id}/install`);
 }
 
+export async function installSkillNpm(id: string) {
+  return api.post<InstallResponse>(`/skills/${id}/install-npm`);
+}
+
 export async function offlineSkill(id: string, comment: string) {
   return api.post<ActionResponse>(`/skills/${id}/offline`, { comment });
 }

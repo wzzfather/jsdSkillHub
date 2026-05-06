@@ -112,8 +112,8 @@ async function confirmOffline() {
 
 async function onRepublish(row: SkillAdmin) {
   try {
-    const { data } = await republishSkill(row.id);
-    ElMessage.success(data.message);
+    await republishSkill(row.id);
+    ElMessage.success("已提交重新上架审批，请前往审批工作台查看");
     await reload();
   } catch {
     ElMessage.error("重新上架失败");
@@ -160,6 +160,8 @@ watch(
         </button>
       </div>
     </header>
+
+    <p class="workflow-hint muted">下架后的重新上架申请需经审批工作台审核。</p>
 
     <div v-if="forbidden" class="muted">无权访问此页面。</div>
     <div v-else-if="loading" class="muted loading">加载中…</div>
@@ -247,6 +249,12 @@ watch(
   margin: 0 0 14px;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.workflow-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .filter-hero {

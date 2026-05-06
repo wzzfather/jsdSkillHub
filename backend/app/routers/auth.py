@@ -74,7 +74,14 @@ async def login(
     body: LoginRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
-    user = await db.scalar(select(User).where(User.username == body.username))
+    user: User | None = None
+    if body.email is not None and str(body.email).strip():
+        email_norm = _normalize_email(str(body.email))
+        user = await db.scalar(select(User).where(User.email == email_norm))
+    if user is None:
+        uname = body.username.strip() if body.username else ""
+        if uname:
+            user = await db.scalar(select(User).where(User.username == uname))
     if user is None or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

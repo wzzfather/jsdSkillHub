@@ -1,7 +1,7 @@
 import { api } from "./client";
-import type { UserPublic } from "./types";
+import type { UserPublic, SendCodeResponse } from "./types";
 
-export async function login(payload: { username: string; password: string }) {
+export async function login(payload: { username?: string; email?: string; password: string }) {
   return api.post<{ access_token: string; token_type: string }>("/auth/login", payload);
 }
 

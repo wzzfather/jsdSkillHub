@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onUnmounted, reactive, ref } from "vue";
+import { computed, onUnmounted, reactive, ref } from "vue";
 import type { UploadRequestOptions } from "element-plus";
 import { ElMessage } from "element-plus";
-import { UploadFilled } from "@element-plus/icons-vue";
+import { CircleCheck, UploadFilled } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 import type { AxiosError } from "axios";
 import { fetchSkillDetail, uploadSkill } from "@/api/skills";
@@ -26,10 +26,11 @@ const form = reactive({
 const step = ref(0);
 const uploading = ref(false);
 const pollSkill = ref<SkillDetail | null>(null);
-const queueNotified = ref(false);
 
 const router = useRouter();
 let timer: ReturnType<typeof setInterval> | undefined;
+
+const showReviewQueueCard = computed(() => pollSkill.value?.status === "pending_review");
 
 function stopPoll() {
   if (timer) clearInterval(timer);
@@ -55,17 +56,12 @@ async function pollOnce(id: string) {
   pollSkill.value = data;
   if (data.status !== "scanning") {
     stopPoll();
-    if (data.status === "pending_review" && !queueNotified.value) {
-      queueNotified.value = true;
-      ElMessage.success("已进入审批队列");
-    }
   }
 }
 
 async function handleUpload(opt: UploadRequestOptions) {
   uploading.value = true;
   pollSkill.value = null;
-  queueNotified.value = false;
   stopPoll();
   try {
     const fd = new FormData();
@@ -77,7 +73,7 @@ async function handleUpload(opt: UploadRequestOptions) {
     if (cat) fd.append("category", cat);
 
     const { data } = await uploadSkill(fd);
-    ElMessage.success("上传成功，扫描进行中…");
+    ElMessage.success("文件已上传，正在扫描…");
     timer = window.setInterval(() => void pollOnce(data.id), 2000);
     await pollOnce(data.id);
     step.value = 1;
@@ -92,6 +88,20 @@ async function handleUpload(opt: UploadRequestOptions) {
   } finally {
     uploading.value = false;
   }
+}
+
+function gotoMyApps() {
+  router.push({ name: "my-apps" });
+}
+
+function resetUploadFlow() {
+  stopPoll();
+  pollSkill.value = null;
+  form.name = "";
+  form.description = "";
+  form.version = "1.0.0";
+  form.category = "";
+  step.value = 0;
 }
 
 function nextStep() {
@@ -195,6 +205,20 @@ onUnmounted(() => stopPoll());
                 <el-tag effect="plain">等待</el-tag>
               </template>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showReviewQueueCard" class="queue-success-card" role="status">
+        <div class="queue-success-icon" aria-hidden="true">
+          <el-icon><CircleCheck /></el-icon>
+        </div>
+        <div class="queue-success-body">
+          <div class="queue-success-title">上传成功，已进入审批队列</div>
+          <p class="queue-success-desc muted">你可前往「我的应用」查看审批进度，或继续提交其他应用。</p>
+          <div class="queue-success-actions">
+            <el-button type="primary" class="act-pri" @click="gotoMyApps">查看我的应用</el-button>
+            <el-button plain class="neutral" @click="resetUploadFlow">继续上传</el-button>
           </div>
         </div>
       </div>
@@ -329,5 +353,59 @@ onUnmounted(() => stopPoll());
 
 .scan-state {
   margin-top: 10px;
+}
+
+.queue-success-card {
+  margin-top: 22px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 20px 22px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.queue-success-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--app-success);
+  font-size: 28px;
+}
+
+.queue-success-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.queue-success-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.queue-success-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.queue-success-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.act-pri {
+  font-weight: 600;
+  border-radius: var(--radius-control);
 }
 </style>

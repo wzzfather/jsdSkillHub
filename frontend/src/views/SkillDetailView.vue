@@ -3,15 +3,20 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { downloadSkill, fetchSkillDetail, installSkill } from "@/api/skills";
+import { downloadSkill, fetchSkillDetail, installSkill, installSkillNpm } from "@/api/skills";
 import type { ScanLayer, SkillDetail } from "@/api/types";
 
 const props = defineProps<{ id: string }>();
 
 const router = useRouter();
 const loading = ref(false);
-const installing = ref(false);
+const installingZip = ref(false);
+const installingNpm = ref(false);
 const detail = ref<SkillDetail | null>(null);
+
+/** 最近一次安装结果（持久展示路径） */
+const lastInstallZip = ref<{ message: string; path: string } | null>(null);
+const lastInstallNpm = ref<{ message: string; path: string; npm_installed: boolean } | null>(null);
 
 function formatTime(iso?: string | null) {
   if (!iso) return "—";
@@ -26,9 +31,69 @@ function statusLabel(status: string) {
     pending_review: "待审批",
     published: "已上架",
     rejected: "已驳回",
+    offline: "已下架",
+    draft: "草稿",
   };
   return m[status] ?? status;
 }
+
+/** 详情页任务流转：每步附带状态文案（已完成 / 进行中 / 待处理） */
+const detailFlow = computed(() => {
+  const st = detail.value?.status ?? "";
+  const titles = ["上传", "扫描中", "待审批", "已上架"] as const;
+  type Row = { title: (typeof titles)[number]; stateLabel: string };
+  let rows: Row[] = [
+    { title: "上传", stateLabel: "待处理" },
+    { title: "扫描中", stateLabel: "待处理" },
+    { title: "待审批", stateLabel: "待处理" },
+    { title: "已上架", stateLabel: "待处理" },
+  ];
+  let active = 0;
+  let processStatus: "process" | "error" | "success" | "wait" | "finish" = "process";
+  let footnote = "" as string;
+
+  if (st === "scanning") {
+    rows = [
+      { title: "上传", stateLabel: "已完成" },
+      { title: "扫描中", stateLabel: "进行中" },
+      { title: "待审批", stateLabel: "待处理" },
+      { title: "已上架", stateLabel: "待处理" },
+    ];
+    active = 1;
+  } else if (st === "pending_review") {
+    rows = [
+      { title: "上传", stateLabel: "已完成" },
+      { title: "扫描中", stateLabel: "已完成" },
+      { title: "待审批", stateLabel: "进行中" },
+      { title: "已上架", stateLabel: "待处理" },
+    ];
+    active = 2;
+  } else if (st === "rejected") {
+    rows = [
+      { title: "上传", stateLabel: "已完成" },
+      { title: "扫描中", stateLabel: "已完成" },
+      { title: "待审批", stateLabel: "已驳回（可修改后重新提交）" },
+      { title: "已上架", stateLabel: "待处理" },
+    ];
+    active = 2;
+    processStatus = "error";
+    footnote = "当前申请未通过审批，请根据反馈意见调整后重新提交。";
+  } else if (st === "published") {
+    rows = titles.map((t) => ({ title: t, stateLabel: "已完成" }));
+    active = 4;
+    processStatus = "success";
+  } else if (st === "offline") {
+    rows = titles.map((t) => ({ title: t, stateLabel: "已完成" }));
+    active = 4;
+    processStatus = "success";
+    footnote = "已从市场下架，历史安装目录不受影响。";
+  } else {
+    rows = [{ title: "上传", stateLabel: "进行中" }, ...titles.slice(1).map((t) => ({ title: t, stateLabel: "待处理" }))];
+    active = 0;
+  }
+
+  return { rows, active, processStatus, footnote };
+});
 
 const layers = computed(() => {
   const want = ["semgrep", "clamav", "llm"];
@@ -78,12 +143,12 @@ async function onDownloadZip() {
   }
 }
 
-async function onInstallOpenClaw() {
+async function onInstallZip() {
   if (!detail.value) return;
   try {
     await ElMessageBox.confirm(
-      "将把 Skill 安装到本机 OpenClaw 目录（已存在同名目录会先备份再覆盖）。是否继续？",
-      "安装到 OpenClaw",
+      "将把 Skill 以压缩包解压方式安装到本机 OpenClaw 目录（已存在同名目录会先备份再覆盖）。是否继续？",
+      "安装（压缩包）",
       {
         type: "warning",
         confirmButtonText: "安装",
@@ -93,14 +158,45 @@ async function onInstallOpenClaw() {
   } catch {
     return;
   }
-  installing.value = true;
+  installingZip.value = true;
   try {
     const { data } = await installSkill(detail.value.id);
+    lastInstallZip.value = { message: data.message, path: data.path };
+    lastInstallNpm.value = null;
     ElMessage.success(`${data.message}：${data.path}`);
   } catch (e) {
     ElMessage.error(apiErrorDetail(e));
   } finally {
-    installing.value = false;
+    installingZip.value = false;
+  }
+}
+
+async function onInstallNpm() {
+  if (!detail.value) return;
+  try {
+    await ElMessageBox.confirm(
+      "将下载 ZIP、解压并在包含 package.json 的目录执行 npm install --production，再把完整目录复制到 OpenClaw（已存在同名目录会先备份再覆盖）。若无 package.json 则仅复制文件；请确保已安装 Node.js/npm。是否继续？",
+      "安装（含 npm 依赖）",
+      {
+        type: "warning",
+        confirmButtonText: "安装",
+        cancelButtonText: "取消",
+      },
+    );
+  } catch {
+    return;
+  }
+  installingNpm.value = true;
+  try {
+    const { data } = await installSkillNpm(detail.value.id);
+    lastInstallNpm.value = { message: data.message, path: data.path, npm_installed: data.npm_installed };
+    lastInstallZip.value = null;
+    const npmHint = data.npm_installed ? "（已执行 npm）" : "（未检测到 package.json，未执行 npm）";
+    ElMessage.success(`${data.message}：${data.path} ${npmHint}`);
+  } catch (e) {
+    ElMessage.error(apiErrorDetail(e));
+  } finally {
+    installingNpm.value = false;
   }
 }
 
@@ -124,8 +220,11 @@ function text(key: string) {
     meta: "元信息",
     desc: "描述",
     scanSum: "扫描结果",
-    dlZip: "下载",
-    installOc: "安装到 OpenClaw",
+    flow: "任务流转",
+    dlZip: "下载 ZIP",
+    installZip: "安装（压缩包）",
+    installNpm: "安装（含 npm 依赖）",
+    installNpmTip: "若 ZIP 内含 package.json，将在临时目录运行 npm install --production",
   };
   return map[key] ?? key;
 }
@@ -166,12 +265,39 @@ onMounted(() => void load());
           <span>提交时间：{{ formatTime(detail.created_at) }}</span>
         </div>
 
-        <div v-if="detail.status === 'published'" class="actions">
-          <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ text("dlZip") }}</el-button>
-          <el-button size="large" class="act-outline" plain :loading="installing" @click="onInstallOpenClaw">{{
-            text("installOc")
-          }}</el-button>
-        </div>
+        <template v-if="detail.status === 'published'">
+          <div class="actions">
+            <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ text("dlZip") }}</el-button>
+            <el-button size="large" class="act-outline" plain :loading="installingZip" @click="onInstallZip">{{ text("installZip") }}</el-button>
+            <el-button size="large" class="act-outline npm-btn" plain :loading="installingNpm" @click="onInstallNpm">{{ text("installNpm") }}</el-button>
+          </div>
+          <p class="npm-tip muted">{{ text("installNpmTip") }}</p>
+
+          <el-alert
+            v-if="lastInstallZip"
+            class="install-result"
+            type="success"
+            :closable="true"
+            :title="lastInstallZip.message"
+            :description="lastInstallZip.path"
+            show-icon
+            @close="lastInstallZip = null"
+          />
+          <el-alert
+            v-if="lastInstallNpm"
+            class="install-result"
+            type="success"
+            :closable="true"
+            show-icon
+            @close="lastInstallNpm = null"
+          >
+            <template #title>{{ lastInstallNpm.message }}</template>
+            <template #default>
+              <div class="install-path">{{ lastInstallNpm.path }}</div>
+              <div class="muted install-npm-flag">{{ lastInstallNpm.npm_installed ? "已执行 npm install --production" : "未检测到 package.json，未执行 npm" }}</div>
+            </template>
+          </el-alert>
+        </template>
       </section>
 
       <section class="scan-section">
@@ -205,6 +331,16 @@ onMounted(() => void load());
             </div>
           </el-col>
         </el-row>
+      </section>
+
+      <section class="flow-section">
+        <h2 class="section-title">{{ text("flow") }}</h2>
+        <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
+          <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
+        </el-steps>
+        <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
+          {{ detailFlow.footnote }}
+        </el-alert>
       </section>
     </div>
   </div>
@@ -289,6 +425,29 @@ onMounted(() => void load());
   gap: 12px;
 }
 
+.npm-tip {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-result {
+  margin-top: 14px;
+  border-radius: var(--radius-control);
+}
+
+.install-path {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  color: var(--app-text);
+}
+
+.install-npm-flag {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
 .act-pri {
   min-width: 120px;
   font-weight: 600;
@@ -305,6 +464,11 @@ onMounted(() => void load());
 
 .act-outline:hover {
   background: rgba(26, 26, 46, 0.06) !important;
+}
+
+.npm-btn {
+  border-color: var(--app-border-strong) !important;
+  color: var(--app-text) !important;
 }
 
 .section-title {
@@ -403,5 +567,43 @@ onMounted(() => void load());
 
 .mt {
   margin-top: 12px;
+}
+
+.flow-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flow-steps {
+  padding: 8px 0;
+  background: var(--app-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--app-border);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.flow-steps :deep(.el-step__title) {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.flow-steps :deep(.el-step__description) {
+  font-size: 12px;
+  max-width: 160px;
+  line-height: 1.4;
+}
+
+.flow-note {
+  border-radius: var(--radius-control);
+  background: var(--app-bg) !important;
+  border: 1px solid var(--app-border-strong) !important;
+  color: var(--app-muted) !important;
+}
+
+.flow-note :deep(.el-alert__title) {
+  color: var(--app-muted);
+  font-weight: 500;
 }
 </style>
