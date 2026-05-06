@@ -1,31 +1,64 @@
 :root {
-  /* 黑白灰主体系（避免界面蓝紫色） */
-  --app-bg: #f5f5f5;
+  /* Brand & surfaces */
+  --app-bg: #f8f9fa;
   --app-surface: #ffffff;
-  --app-primary: #404040;
-  --app-primary-hover: #2d2d2d;
-  --app-text: #1f2937;
-  --app-muted: #6b7280;
-  --app-border: #d1d5db;
-  --app-header-text: #f9fafb;
+  --app-primary: #1a1a2e;
+  --app-primary-accent: #16213e;
+  --app-primary-deep: #0f3460;
+  --app-text: #1a1a2e;
+  --app-muted: #6c757d;
+  --app-placeholder: #adb5bd;
+  --app-border: #e9ecef;
+  --app-border-strong: #dee2e6;
+  --app-header-bg: #ffffff;
+  --app-header-text: #1a1a2e;
 
-  /* Element Plus：主色与语义色对齐 UI 规则（少用彩色装饰） */
-  --el-color-primary: #404040;
-  --el-color-primary-light-3: #5c5c5c;
-  --el-color-primary-light-5: #737373;
-  --el-color-primary-light-7: #a3a3a3;
-  --el-color-primary-light-9: #e5e5e5;
+  /* Semantic */
+  --app-success: #22c55e;
+  --app-danger: #ef4444;
+  --app-warning: #f59e0b;
+  --app-info: #3b82f6;
+
+  /* Layout */
+  --page-padding-x: 28px;
+  --page-padding-y: 28px;
+  --card-padding: 24px;
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 22px;
+  --header-height: 56px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-header: 0 1px 0 #e9ecef;
+  --shadow-auth-card: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --focus-ring: 0 0 0 3px rgba(15, 52, 96, 0.1);
+
+  /* Status tag surfaces (lists / tables) */
+  --status-published-bg: #eff6ff;
+  --status-published-text: #1e40af;
+  --status-scanning-bg: #ede9fe;
+  --status-scanning-text: #5b21b6;
+  --status-pending-bg: #fef3c7;
+  --status-pending-text: #92400e;
+  --status-rejected-bg: #fee2e2;
+  --status-rejected-text: #991b1b;
+
+  /* Element Plus theme bridge */
+  --el-color-primary: #1a1a2e;
+  --el-color-primary-light-3: #3d3d5c;
+  --el-color-primary-light-5: #5c5c7a;
+  --el-color-primary-light-7: #8b8ba3;
+  --el-color-primary-light-9: #e8e8ed;
   --el-color-success: #22c55e;
-  --el-color-warning: #6b7280;
-  --el-color-danger: #e74c3c;
-  --el-color-info: #737373;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444;
+  --el-color-info: #3b82f6;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 8px;
+}
 
-  --status-published-bg: #f3f4f6;
-  --status-published-text: #374151;
-  --status-scanning-bg: #e8e8e8;
-  --status-scanning-text: #4b5563;
-  --status-pending-bg: #eef0f3;
-  --status-pending-text: #4b5563;
-  --status-rejected-bg: #eaeaea;
-  --status-rejected-text: #4b5563;
+* {
+  transition: all 0.2s ease;
 }

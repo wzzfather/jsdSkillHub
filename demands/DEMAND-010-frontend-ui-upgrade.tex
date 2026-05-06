@@ -1,0 +1,228 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-010}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{DEMAND-010：前端 UI 品质升级}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+总需求编号 & D-017 \\
+前置需求 & D-011（MVP）、D-012（前端重写）、D-015/D-016（邮箱+生命周期） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求背景}
+
+当前前端功能完整（10 个页面、15 个 API 对接），但视觉效果仍然像演示/Demo。魏子政明确要求：前端 UI 需要从「能用的 Demo」升级为「正式的产品级应用商店」。
+
+\textbf{核心问题}：
+\begin{itemize}[nosep]
+  \item 缺少品牌感（没有 Logo、没有视觉识别）
+  \item 视觉层次不够（信息密度低，缺少留白和间距节奏）
+  \item 交互体验粗糙（缺少过渡动画、加载状态、空状态插画）
+  \item 页面布局单调（没有视觉焦点，卡片缺少层次感）
+\end{itemize}
+
+\section{设计规范}
+
+\subsection{色彩体系}
+
+\begin{itemize}[nosep]
+  \item \textbf{主色}：\texttt{\#1a1a2e}（深蓝黑）
+  \item \textbf{辅助色}：\texttt{\#16213e}（中蓝黑）、\texttt{\#0f3460}（亮蓝黑）
+  \item \textbf{背景}：\texttt{\#f8f9fa}（浅灰）、\texttt{\#ffffff}（白色）
+  \item \textbf{文字}：\texttt{\#1a1a2e}（主文字）、\texttt{\#6c757d}（次要文字）、\texttt{\#adb5bd}（占位文字）
+  \item \textbf{边框}：\texttt{\#e9ecef}（浅灰边框）、\texttt{\#dee2e6}（深灰边框）
+  \item \textbf{功能色}：success=\texttt{\#22c55e}、danger=\texttt{\#ef4444}、warning=\texttt{\#f59e0b}、info=\texttt{\#3b82f6}
+\end{itemize}
+
+\subsection{排版规范}
+
+\begin{itemize}[nosep]
+  \item 标题：\texttt{font-weight: 700}，16--24px
+  \item 正文：\texttt{font-weight: 400}，14px，行高 1.6
+  \item 次要文字：\texttt{color: \#6c757d}，12--13px
+  \item 字体栈：\texttt{-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif}
+\end{itemize}
+
+\subsection{间距与圆角}
+
+\begin{itemize}[nosep]
+  \item 页面内边距：24--32px
+  \item 卡片内边距：20--24px
+  \item 元素间距：16--24px
+  \item 卡片圆角：12px
+  \item 按钮圆角：8px
+  \item 输入框圆角：8px
+\end{itemize}
+
+\subsection{阴影与层次}
+
+\begin{itemize}[nosep]
+  \item 卡片默认：\texttt{box-shadow: 0 1px 3px rgba(0,0,0,0.08)}
+  \item 卡片悬停：\texttt{box-shadow: 0 8px 24px rgba(0,0,0,0.12)} + 轻微上移 \texttt{transform: translateY(-2px)}
+  \item 导航栏：\texttt{box-shadow: 0 1px 0 \#e9ecef}（底部 1px 边框）
+\end{itemize}
+
+\section{各页面改造要点}
+
+\subsection{App.vue（全局布局）}
+
+\begin{itemize}[nosep]
+  \item 顶部导航栏：左侧品牌 Logo（SVG 图标 + ``Skill Store'' 文字），右侧导航链接
+  \item 导航栏高度 56px，固定在顶部，白色背景 + 底部阴影
+  \item 登录状态区域：用户头像（首字母圆形头像）+ 下拉菜单（我的应用/设置/退出）
+  \item 页面底部：简约 footer（版权信息）
+  \item 页面切换加 \texttt{<router-view v-slot>} + \texttt{<transition>} 淡入动画
+\end{itemize}
+
+\subsection{ExploreView（应用市场）}
+
+\begin{itemize}[nosep]
+  \item 顶部 Banner 区域：大标题「发现 AI 技能」+ 副标题 + 统计数字（已上架 X 个技能）
+  \item 搜索栏：大尺寸居中，圆角，左侧搜索图标，带聚焦光效
+  \item 分类标签：横排胶囊按钮，选中态填充主色
+  \item 排序：右侧下拉选择器
+  \item 卡片网格：每行 3--4 列，卡片有封面图标区域（彩色渐变背景 + Skill 类型图标）
+  \item 卡片内容：名称（加粗）+ 版本标签 + 分类标签 + 描述（两行截断）+ 底部作者信息
+  \item 卡片悬停：阴影增强 + 上移 2px + transition 0.2s
+  \item 分页：居中，简约样式
+\end{itemize}
+
+\subsection{SkillDetailView（技能详情）}
+
+\begin{itemize}[nosep]
+  \item 顶部面包屑导航（应用市场 > 技能名称）
+  \item 信息区：左侧大卡片（名称 + 版本 + 分类 + 状态标签 + 描述），右侧操作区（下载/安装按钮）
+  \item 扫描结果区：三个小卡片并排（Semgrep / ClamAV / LLM），每个显示图标 + 名称 + PASS/FAIL
+  \item 按钮样式：下载按钮（主色填充）、安装按钮（主色边框）
+\end{itemize}
+
+\subsection{LoginView / RegisterView（认证页）}
+
+\begin{itemize}[nosep]
+  \item 居中卡片布局（max-width 420px），左右两栏或单栏
+  \item 顶部品牌 Logo + 标语
+  \item 输入框：大尺寸，圆角，聚焦时蓝色边框
+  \item 登录按钮：全宽，主色填充，圆角
+  \item 底部链接：注册/登录切换，灰色文字
+\end{itemize}
+
+\subsection{SubmitView（提交应用）}
+
+\begin{itemize}[nosep]
+  \item 分步表单（el-steps 指示器在顶部）
+  \item 第一步：基本信息（名称/描述/版本/分类，表单左右布局或上下布局）
+  \item 第二步：上传文件（拖拽上传区域，虚线边框，上传图标，支持拖拽和点击）
+  \item 上传后显示扫描进度（三行进度条或状态指示器）
+\end{itemize}
+
+\subsection{ReviewView（审批工作台）}
+
+\begin{itemize}[nosep]
+  \item 顶部统计卡片：待审批数量（大数字 + 小标签）
+  \item 表格：行间距加大，状态标签带颜色
+  \item 审批详情 Drawer：三层扫描结果用独立卡片展示，每个有图标和状态
+  \item 审批按钮：通过（绿色填充）+ 驳回（红色边框），输入框放驳回原因
+\end{itemize}
+
+\subsection{MyAppsView（我的应用）}
+
+\begin{itemize}[nosep]
+  \item 顶部标题 + 简述
+  \item 表格或卡片列表（按状态分组展示）
+  \item rejected 状态行：橙色背景提示 + 「重新提交」按钮
+  \item offline 状态行：灰色标签 + 下架原因
+\end{itemize}
+
+\subsection{AdminAppsView（应用管理）}
+
+\begin{itemize}[nosep]
+  \item 顶部状态筛选标签栏（全部/scanning/pending/published/offline/rejected）
+  \item 表格：状态标签带颜色圆点
+  \item 下架操作：el-dialog 弹窗 + textarea
+\end{itemize}
+
+\subsection{DashboardView（看板）}
+
+\begin{itemize}[nosep]
+  \item 四个统计卡片：总技能数、待审批、已上架、已下架
+  \item 卡片有图标 + 大数字 + 趋势文字
+\end{itemize}
+
+\section{交互细节}
+
+\begin{itemize}[nosep]
+  \item 所有按钮有 \texttt{transition: all 0.2s ease}
+  \item 卡片悬停有阴影和位移变化
+  \item 页面切换有淡入动画
+  \item 加载状态用 skeleton 骨架屏或 spinner
+  \item 空状态用图标 + 文字描述（不是空白）
+  \item 表格行悬停有浅灰背景
+  \item 所有可点击元素有 \texttt{cursor: pointer}
+\end{itemize}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[$\square$] 整体视觉不再像 Demo，有品牌感和产品感
+  \item[$\square$] 黑白灰色系统一，无突兀颜色
+  \item[$\square$] 卡片有阴影和悬停效果
+  \item[$\square$] 导航栏有品牌 Logo 和用户头像
+  \item[$\square$] 所有页面间距、圆角、字号统一
+  \item[$\square$] npm run build 无报错
+  \item[$\square$] 所有现有功能不受影响（API 对接不变）
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

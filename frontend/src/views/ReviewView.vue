@@ -14,6 +14,7 @@ const current = ref<ReviewPendingItem | null>(null);
 const comment = ref("");
 
 const tableRows = computed(() => rows.value.map((r) => r.skill));
+const pendingCount = computed(() => rows.value.length);
 
 function formatTime(iso?: string | null) {
   if (!iso) return "—";
@@ -49,6 +50,12 @@ function findingsPreview(result: ScanLayer["result"]): unknown {
     return (result as { findings?: unknown }).findings ?? result;
   }
   return result;
+}
+
+function layerAccent(t: string) {
+  if (t === "semgrep") return "accent-semgrep";
+  if (t === "clamav") return "accent-clamav";
+  return "accent-llm";
 }
 
 async function reload() {
@@ -115,82 +122,112 @@ onMounted(() => void reload());
 </script>
 
 <template>
-  <div class="card-panel">
-    <div class="header-row">
-      <div>
-        <h2 class="page-title">审批工作台</h2>
-        <p class="muted">管理员查看三层扫描结果并做出人工决策。</p>
+  <div class="review-page">
+    <header class="page-head">
+      <div class="head-copy">
+        <h2 class="page-heading">审批工作台</h2>
+        <p class="muted page-lead">管理员查看三层扫描结果并做出人工决策。</p>
       </div>
-      <el-button type="primary" plain @click="reload">刷新</el-button>
-    </div>
+      <el-button type="primary" plain class="reload" @click="reload">刷新</el-button>
+    </header>
 
     <el-alert v-if="forbidden" type="warning" show-icon title="需要管理员权限" description="请使用管理员账号登录后再访问。" />
 
-    <el-table v-loading="loading" :data="tableRows" class="mt" style="width: 100%" @row-click="onRowClick">
-      <el-table-column prop="name" label="名称" min-width="200" />
-      <el-table-column prop="version" label="版本" width="110" />
-      <el-table-column prop="category" label="分类" width="140">
-        <template #default="{ row }">{{ row.category || "—" }}</template>
-      </el-table-column>
-      <el-table-column label="扫描摘要" min-width="220">
-        <template #default="{ row }">
-          <div class="icons">
-            <span class="ico" title="Semgrep">
-              <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'ok'" class="ok"
-                ><CircleCheck
-              /></el-icon>
-              <el-icon
-                v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'bad'"
-                class="bad"
-                ><CircleClose
-              /></el-icon>
-              <span v-else class="muted tiny">—</span>
-            </span>
-            <span class="ico" title="ClamAV">
-              <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'ok'" class="ok"
-                ><CircleCheck
-              /></el-icon>
-              <el-icon
-                v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'bad'"
-                class="bad"
-                ><CircleClose
-              /></el-icon>
-              <span v-else class="muted tiny">—</span>
-            </span>
-            <span class="ico" title="LLM">
-              <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'ok'" class="ok"
-                ><CircleCheck
-              /></el-icon>
-              <el-icon
-                v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'bad'"
-                class="bad"
-                ><CircleClose
-              /></el-icon>
-              <span v-else class="muted tiny">—</span>
-            </span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column label="提交时间" min-width="170">
-        <template #default="{ row }">
-          <span class="muted">{{ formatTime(row.created_at) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click.stop="openDetail(row)">打开</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-row v-else class="stats" :gutter="16">
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-kpi">{{ pendingCount }}</div>
+          <div class="stat-label muted">待审批（当前队列）</div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-kpi muted">—</div>
+          <div class="stat-label muted">本月已审</div>
+          <div class="stat-hint muted">统计报表接入后即可展示。</div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="8">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-kpi muted">—</div>
+          <div class="stat-label muted">通过率</div>
+          <div class="stat-hint muted">统计报表接入后即可展示。</div>
+        </el-card>
+      </el-col>
+    </el-row>
 
-    <el-drawer v-model="drawer" size="560px" direction="rtl" title="审批详情">
+    <el-card v-if="!forbidden" class="table-card" shadow="never">
+      <el-table
+        v-loading="loading"
+        :data="tableRows"
+        stripe
+        class="review-table"
+        style="width: 100%"
+        @row-click="onRowClick"
+      >
+        <el-table-column prop="name" label="名称" min-width="200" />
+        <el-table-column prop="version" label="版本" width="110" />
+        <el-table-column prop="category" label="分类" width="140">
+          <template #default="{ row }">{{ row.category || "—" }}</template>
+        </el-table-column>
+        <el-table-column label="扫描摘要" min-width="220">
+          <template #default="{ row }">
+            <div class="icons">
+              <span class="ico" title="Semgrep">
+                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'ok'" class="ok"
+                  ><CircleCheck
+                /></el-icon>
+                <el-icon
+                  v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'semgrep') === 'bad'"
+                  class="bad"
+                  ><CircleClose
+                /></el-icon>
+                <span v-else class="muted tiny">—</span>
+              </span>
+              <span class="ico" title="ClamAV">
+                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'ok'" class="ok"
+                  ><CircleCheck
+                /></el-icon>
+                <el-icon
+                  v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'clamav') === 'bad'"
+                  class="bad"
+                  ><CircleClose
+                /></el-icon>
+                <span v-else class="muted tiny">—</span>
+              </span>
+              <span class="ico" title="LLM">
+                <el-icon v-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'ok'" class="ok"
+                  ><CircleCheck
+                /></el-icon>
+                <el-icon v-else-if="scanCellState(rows.find((r) => r.skill.id === row.id)?.scans || [], 'llm') === 'bad'" class="bad"
+                  ><CircleClose
+                /></el-icon>
+                <span v-else class="muted tiny">—</span>
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="提交时间" min-width="170">
+          <template #default="{ row }">
+            <span class="muted">{{ formatTime(row.created_at) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click.stop="openDetail(row)">打开</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <el-drawer v-model="drawer" size="560px" direction="rtl" title="审批详情" class="review-drawer">
       <template v-if="current">
         <div class="detail-head">
           <div class="detail-title">{{ current.skill.name }}</div>
           <div class="muted">v{{ current.skill.version }} · {{ current.skill.category || "未分类" }}</div>
         </div>
 
-        <div v-for="s in sortedScans(current.scans)" :key="s.scan_type" class="layer card-panel">
+        <div v-for="s in sortedScans(current.scans)" :key="s.scan_type" class="scan-layer-card card-panel" :class="layerAccent(s.scan_type)">
           <div class="layer-head">
             <div>{{ scanLabel(s.scan_type) }}</div>
             <el-tag :type="s.passed ? 'success' : 'danger'" effect="dark">{{ s.passed ? "通过" : "不通过" }}</el-tag>
@@ -213,15 +250,76 @@ onMounted(() => void reload());
 </template>
 
 <style scoped>
-.header-row {
+.review-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-head {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
 }
 
-.mt {
-  margin-top: 16px;
+.page-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.page-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.reload {
+  border-radius: var(--radius-control);
+}
+
+.stats {
+  margin-top: 2px;
+}
+
+.stat-card :deep(.el-card__body) {
+  padding: 18px 16px;
+}
+
+.stat-kpi {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--app-text);
+  line-height: 1.05;
+}
+
+.stat-label {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stat-hint {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.table-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.review-table {
+  --table-pad-y: 14px;
+}
+
+.review-table :deep(.cell) {
+  padding-top: var(--table-pad-y);
+  padding-bottom: var(--table-pad-y);
+}
+
+.review-table :deep(.el-table__row) {
+  cursor: pointer;
 }
 
 .icons {
@@ -242,11 +340,11 @@ onMounted(() => void reload());
 }
 
 .ok {
-  color: #22c55e;
+  color: var(--app-success);
 }
 
 .bad {
-  color: #e74c3c;
+  color: var(--app-danger);
 }
 
 .detail-head {
@@ -255,12 +353,25 @@ onMounted(() => void reload());
 
 .detail-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.layer {
+.scan-layer-card {
   margin-bottom: 12px;
-  padding: 16px;
+  padding: 16px !important;
+  border-left-width: 4px;
+}
+
+.accent-semgrep {
+  border-left-color: #6366f1;
+}
+
+.accent-clamav {
+  border-left-color: #22c55e;
+}
+
+.accent-llm {
+  border-left-color: #3b82f6;
 }
 
 .layer-head {
@@ -269,7 +380,7 @@ onMounted(() => void reload());
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sub {
@@ -283,19 +394,23 @@ onMounted(() => void reload());
   word-break: break-word;
   font-size: 12px;
   color: var(--app-text);
-  background: #fafafa;
+  background: var(--app-bg);
   border: 1px solid var(--app-border);
   border-radius: 10px;
   padding: 10px;
 }
 
 .foot {
-  padding: 16px;
+  padding: 16px !important;
 }
 
 .actions {
   display: flex;
   gap: 12px;
   margin-top: 12px;
+}
+
+.review-drawer :deep(.el-drawer__body) {
+  padding: 16px 18px 24px;
 }
 </style>

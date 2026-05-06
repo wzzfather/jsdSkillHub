@@ -110,16 +110,19 @@ onUnmounted(() => stopPoll());
 </script>
 
 <template>
-  <div class="card-panel">
-    <h2 class="page-title">提交应用</h2>
-    <p class="muted">填写元数据后在第二步上传 ZIP；系统将执行 Semgrep、ClamAV、LLM 三层扫描。</p>
+  <div class="submit-page">
+    <header class="page-head">
+      <h2 class="page-heading">提交应用</h2>
+      <p class="muted page-lead">
+        填写元数据后在第二步上传 ZIP；系统将执行 Semgrep、ClamAV、LLM 三层扫描。
+      </p>
+      <el-steps class="steps" finish-status="success" :active="step" align-center>
+        <el-step title="基础信息" description="名称 / 版本 / 分类 / 简介" />
+        <el-step title="上传与扫描" description="拖拽 zip 并观测扫描进度" />
+      </el-steps>
+    </header>
 
-    <el-steps class="steps" finish-status="success" :active="step" align-center>
-      <el-step title="基础信息" description="名称 / 版本 / 分类 / 简介" />
-      <el-step title="上传与扫描" description="拖拽 zip 并观测扫描进度" />
-    </el-steps>
-
-    <div v-if="step === 0" class="block">
+    <div v-if="step === 0" class="form-card card-panel">
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :xs="24" :md="12">
@@ -145,12 +148,12 @@ onUnmounted(() => stopPoll());
             </el-form-item>
           </el-col>
         </el-row>
-        <el-button type="primary" class="cta" @click="nextStep">下一步</el-button>
+        <el-button type="primary" class="cta" size="large" @click="nextStep">下一步</el-button>
       </el-form>
     </div>
 
-    <div v-else class="block">
-      <div class="row">
+    <div v-else class="form-card card-panel">
+      <div class="step-toolbar">
         <el-button plain class="neutral" @click="prevStep">上一步</el-button>
       </div>
 
@@ -162,8 +165,8 @@ onUnmounted(() => stopPoll());
         accept=".zip"
         :show-file-list="false"
       >
-        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-        <div class="el-upload__text">将 zip 拖到此处，或点击上传</div>
+        <el-icon class="el-icon--upload upload-ico"><UploadFilled /></el-icon>
+        <div class="upload-title">拖拽文件到此处或点击上传</div>
         <template #tip>
           <div class="el-upload__tip muted">仅支持 .zip；名称需在第一步填写完整。</div>
         </template>
@@ -172,11 +175,11 @@ onUnmounted(() => stopPoll());
       <div v-if="pollSkill" class="status">
         <div class="status-row">
           <span class="muted">当前状态：</span>
-          <el-tag effect="plain" type="info">{{ pollSkill.status }}</el-tag>
+          <el-tag effect="light" type="info">{{ pollSkill.status }}</el-tag>
         </div>
 
         <div class="scan-grid">
-          <div v-for="t in ['semgrep', 'clamav', 'llm'] as const" :key="t" class="scan-card">
+          <div v-for="t in ['semgrep', 'clamav', 'llm'] as const" :key="t" class="scan-card" :class="`accent-${t}`">
             <div class="scan-title">{{ layerTitle(t) }}</div>
             <div class="scan-state">
               <template v-if="scanState(pollSkill, t) === 'loading'">
@@ -200,33 +203,85 @@ onUnmounted(() => stopPoll());
 </template>
 
 <style scoped>
-.steps {
-  margin: 18px 0;
+.submit-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.block {
-  margin-top: 8px;
+.page-head {
+  margin-bottom: 4px;
+}
+
+.page-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--app-text);
+}
+
+.page-lead {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.steps {
+  margin-top: 4px;
+  padding: 8px 0 4px;
+}
+
+.steps :deep(.el-step__title) {
+  font-weight: 600;
+}
+
+.form-card {
+  padding: 24px;
+}
+
+.step-toolbar {
+  margin-bottom: 14px;
+}
+
+.neutral {
+  border-color: var(--app-border-strong);
+  color: var(--app-text);
 }
 
 .cta {
   margin-top: 8px;
 }
 
-.row {
-  margin-bottom: 10px;
-}
-
-.neutral {
-  border-color: var(--app-border);
-  color: var(--app-text);
-}
-
 .uploader {
   width: 100%;
 }
 
+.uploader :deep(.el-upload-dragger) {
+  border: 2px dashed var(--app-border-strong);
+  border-radius: var(--radius-card);
+  padding: 40px 24px;
+  background: var(--app-surface);
+}
+
+.uploader :deep(.el-upload-dragger:hover) {
+  border-color: var(--app-primary-deep);
+  background: var(--app-bg);
+}
+
+.upload-ico {
+  font-size: 48px;
+  color: var(--app-muted);
+}
+
+.upload-title {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
 .status {
-  margin-top: 18px;
+  margin-top: 22px;
 }
 
 .status-row {
@@ -236,10 +291,10 @@ onUnmounted(() => stopPoll());
 }
 
 .scan-grid {
-  margin-top: 12px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 @media (max-width: 900px) {
@@ -250,16 +305,29 @@ onUnmounted(() => stopPoll());
 
 .scan-card {
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 12px;
-  background: #fafafa;
+  border-radius: var(--radius-control);
+  padding: 16px;
+  background: var(--app-bg);
+  border-left-width: 4px;
+}
+
+.accent-semgrep {
+  border-left-color: #6366f1;
+}
+
+.accent-clamav {
+  border-left-color: #22c55e;
+}
+
+.accent-llm {
+  border-left-color: #3b82f6;
 }
 
 .scan-title {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .scan-state {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 </style>

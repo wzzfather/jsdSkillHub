@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
+import { ArrowDown } from "@element-plus/icons-vue";
 import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
@@ -9,6 +10,12 @@ const auth = useAuthStore();
 
 const isAuthed = computed(() => !!auth.token);
 const isAdmin = computed(() => auth.isAdmin);
+
+const userInitial = computed(() => {
+  const id = auth.userId?.trim() ?? "";
+  const c = id.charAt(0);
+  return c ? c.toUpperCase() : "?";
+});
 
 function logout() {
   auth.clear();
@@ -29,37 +36,241 @@ function goBrand() {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <div class="app-brand" role="button" tabindex="0" @click="goBrand" @keydown.enter.prevent="goBrand">
-        Skill Store
+      <div class="header-left">
+        <div class="app-brand" role="button" tabindex="0" @click="goBrand" @keydown.enter.prevent="goBrand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M16 4l11 6.5v13L16 30 5 23.5v-13L16 4z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                fill="rgba(26,26,46,0.06)"
+              />
+              <path d="M16 9l7 4v10l-7 4-7-4V13l7-4z" fill="currentColor" fill-opacity="0.12" />
+            </svg>
+          </span>
+          <span class="brand-title">Skill Store</span>
+        </div>
+
+        <nav class="app-nav primary-nav" aria-label="主导航">
+          <button type="button" class="plain-nav" :class="navClass(['explore', 'skill-detail'])" @click="router.push({ name: 'explore' })">
+            浏览
+          </button>
+
+          <template v-if="isAuthed">
+            <button type="button" class="plain-nav" :class="navClass('submit')" @click="router.push({ name: 'submit' })">提交应用</button>
+            <button type="button" class="plain-nav" :class="navClass('my-apps')" @click="router.push({ name: 'my-apps' })">我的应用</button>
+            <button type="button" class="plain-nav" :class="navClass('dashboard')" @click="router.push({ name: 'dashboard' })">看板</button>
+            <button v-if="isAdmin" type="button" class="plain-nav" :class="navClass('review')" @click="router.push({ name: 'review' })">
+              审批工作台
+            </button>
+            <button v-if="isAdmin" type="button" class="plain-nav" :class="navClass('admin-apps')" @click="router.push({ name: 'admin-apps' })">
+              应用管理
+            </button>
+          </template>
+        </nav>
       </div>
-      <nav class="app-nav">
-        <el-button text :class="navClass(['explore', 'skill-detail'])" @click="router.push({ name: 'explore' })">浏览</el-button>
 
+      <div class="header-right">
         <template v-if="!isAuthed">
-          <el-button text :class="navClass('login')" @click="router.push({ name: 'login' })">
-            登录
-          </el-button>
-          <el-button text :class="navClass('register')" @click="router.push({ name: 'register' })">
+          <button type="button" class="plain-nav" :class="navClass('login')" @click="router.push({ name: 'login' })">登录</button>
+          <button type="button" class="plain-nav register-pill" :class="navClass('register')" @click="router.push({ name: 'register' })">
             注册
-          </el-button>
+          </button>
         </template>
-
-        <template v-else>
-          <el-button text :class="navClass('submit')" @click="router.push({ name: 'submit' })">提交应用</el-button>
-          <el-button text :class="navClass('my-apps')" @click="router.push({ name: 'my-apps' })">我的应用</el-button>
-          <el-button v-if="isAdmin" text :class="navClass('review')" @click="router.push({ name: 'review' })">
-            审批工作台
-          </el-button>
-          <el-button v-if="isAdmin" text :class="navClass('admin-apps')" @click="router.push({ name: 'admin-apps' })">
-            应用管理
-          </el-button>
-          <el-button text :class="navClass('dashboard')" @click="router.push({ name: 'dashboard' })">看板</el-button>
-          <el-button text class="nav-link" @click="logout">退出</el-button>
-        </template>
-      </nav>
+        <el-dropdown v-else trigger="click" @command="(c: string) => c === 'logout' && logout()">
+          <span class="user-trigger">
+            <span class="user-avatar" :title="auth.userId || '用户'">{{ userInitial }}</span>
+            <el-icon class="user-chevron"><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </header>
+
     <main class="app-main">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <transition name="fade-page" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </RouterView>
     </main>
+
+    <footer class="app-footer">© 2026 AI Agent Skill Store</footer>
   </div>
 </template>
+
+<style scoped>
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--header-height);
+  background: var(--app-header-bg);
+  color: var(--app-header-text);
+  box-shadow: var(--shadow-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--page-padding-x);
+  box-sizing: border-box;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--app-primary);
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-primary);
+}
+
+.brand-title {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  color: var(--app-primary);
+  white-space: nowrap;
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plain-nav {
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-weight: 500;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+}
+
+.plain-nav:hover {
+  background: rgba(26, 26, 46, 0.06);
+  color: var(--app-primary);
+}
+
+.plain-nav.is-active {
+  background: rgba(26, 26, 46, 0.1);
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.register-pill {
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+}
+
+.register-pill:hover {
+  border-color: var(--app-primary-deep);
+  background: var(--app-surface);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 6px 4px 4px;
+  border-radius: 999px;
+}
+
+.user-trigger:hover {
+  background: rgba(26, 26, 46, 0.06);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--app-primary) 0%, var(--app-primary-deep) 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-chevron {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x);
+  box-sizing: border-box;
+}
+
+.app-footer {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--app-muted);
+  border-top: 1px solid var(--app-border);
+  background: var(--app-bg);
+}
+
+@media (max-width: 520px) {
+  .brand-title {
+    font-size: 16px;
+  }
+}
+</style>
+
+<style>
+.fade-page-enter-active,
+.fade-page-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-page-enter-from,
+.fade-page-leave-to {
+  opacity: 0;
+}
+</style>

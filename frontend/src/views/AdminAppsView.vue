@@ -142,28 +142,29 @@ watch(
 </script>
 
 <template>
-  <div>
-    <div class="card-panel hero">
-      <h1 class="page-title">应用管理</h1>
-      <p class="muted">查看并管理各状态 Skill，支持下架与重新上架。</p>
-      <div class="tag-row">
-        <el-button
+  <div class="admin-apps">
+    <header class="filter-hero card-panel">
+      <h1 class="page-heading">应用管理</h1>
+      <p class="muted page-lead">查看并管理各状态 Skill，支持下架与重新上架。</p>
+
+      <div class="pill-row">
+        <button
           v-for="t in statusTabs"
           :key="t.key || 'all'"
-          size="small"
-          :type="statusFilter === t.key ? 'primary' : 'default'"
-          plain
+          type="button"
+          class="pill"
+          :class="{ active: statusFilter === t.key }"
           @click="statusFilter = t.key"
         >
           {{ t.label }}
-        </el-button>
+        </button>
       </div>
-    </div>
+    </header>
 
     <div v-if="forbidden" class="muted">无权访问此页面。</div>
     <div v-else-if="loading" class="muted loading">加载中…</div>
-    <div v-else class="card-panel table-wrap">
-      <el-table :data="rows" stripe style="width: 100%">
+    <el-card v-else class="table-card" shadow="never">
+      <el-table :data="rows" stripe class="apps-table" style="width: 100%">
         <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip />
         <el-table-column prop="version" label="版本" width="100" />
         <el-table-column label="作者" min-width="120" show-overflow-tooltip>
@@ -216,9 +217,9 @@ watch(
           :total="total"
         />
       </div>
-    </div>
+    </el-card>
 
-    <el-dialog v-model="offlineVisible" title="下架应用" width="480px" destroy-on-close>
+    <el-dialog v-model="offlineVisible" title="下架应用" width="520px" destroy-on-close align-center append-to-body>
       <p class="muted dialog-hint">请填写下架原因，提交后将立即变为已下架。</p>
       <el-input v-model="offlineReason" type="textarea" :rows="4" placeholder="下架原因…" maxlength="2000" show-word-limit />
       <template #footer>
@@ -230,29 +231,74 @@ watch(
 </template>
 
 <style scoped>
-.hero {
-  margin-bottom: 16px;
+.admin-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.tag-row {
-  margin-top: 12px;
+.page-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.page-lead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.filter-hero {
+  padding: 24px;
+}
+
+.pill-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+}
+
+.pill {
+  appearance: none;
+  border-radius: 999px;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  font-family: inherit;
+}
+
+.pill.active {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: #fff;
+}
+
+.pill:hover:not(.active) {
+  border-color: var(--app-primary-deep);
+  color: var(--app-primary);
 }
 
 .loading {
   padding: 12px 4px;
 }
 
-.table-wrap {
-  padding-bottom: 8px;
+.table-card :deep(.el-card__body) {
+  padding: 0 0 8px;
+}
+
+.apps-table :deep(.cell) {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .pager {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
+  padding: 10px 0 14px;
 }
 
 .dialog-hint {

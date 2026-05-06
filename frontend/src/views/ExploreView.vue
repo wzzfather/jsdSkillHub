@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { fetchSkills } from "@/api/skills";
 import type { Skill } from "@/api/types";
@@ -25,6 +26,16 @@ function authorLabel(skill: Skill) {
   const id = skill.author_id;
   if (!id) return "—";
   return id.length <= 12 ? id : `…${id.slice(-10)}`;
+}
+
+function heroToneClass(cat: string | null | undefined) {
+  const c = (cat ?? "").trim().toLowerCase();
+  if (c === "productivity") return "tone-productivity";
+  if (c === "security") return "tone-security";
+  if (c === "support") return "tone-support";
+  if (c === "knowledge") return "tone-knowledge";
+  if (c === "other" || c === "其他") return "tone-other";
+  return "tone-default";
 }
 
 async function loadPage() {
@@ -78,9 +89,9 @@ function goDetail(s: Skill) {
 
 function text(key: string) {
   const map: Record<string, string> = {
-    headline: "应用市场",
-    sub: "已上架 Skill 一览，可使用搜索与分类快速定位。",
-    searchPh: "按名称或简介搜索…",
+    headline: "发现 AI 技能",
+    sub: "浏览已上架的技能，搜索并安装到你的工作流",
+    searchPh: "搜索技能名称或简介…",
     empty: "暂无符合条件的 Skill",
     category: "分类",
     sort: "排序",
@@ -90,53 +101,79 @@ function text(key: string) {
 </script>
 
 <template>
-  <div>
-    <div class="card-panel hero">
-      <h1 class="page-title">{{ text("headline") }}</h1>
-      <p class="muted">{{ text("sub") }}</p>
-      <el-input v-model="query" class="search" clearable :placeholder="text('searchPh')" />
-      <div class="filters">
-        <div class="filter-item">
-          <span class="filter-label muted">{{ text("category") }}</span>
-          <el-select v-model="categoryFilter" class="filter-control" placeholder="全部分类">
-            <el-option label="全部" value="" />
-            <el-option label="productivity" value="productivity" />
-            <el-option label="security" value="security" />
-            <el-option label="support" value="support" />
-            <el-option label="knowledge" value="knowledge" />
-            <el-option label="其他" value="other" />
-          </el-select>
+  <div class="explore-page">
+    <header class="hero">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <h1 class="hero-title">{{ text("headline") }}</h1>
+          <p class="hero-sub">{{ text("sub") }}</p>
         </div>
-        <div class="filter-item">
-          <span class="filter-label muted">{{ text("sort") }}</span>
-          <el-select v-model="sortBy" class="filter-control">
+        <el-tag v-if="!loading && total >= 0" class="hero-stat" type="info" effect="light" round>
+          已上架 {{ total }} 个技能
+        </el-tag>
+      </div>
+
+      <div class="search-wrap">
+        <el-input v-model="query" class="search-input" clearable size="large" :placeholder="text('searchPh')">
+          <template #prefix>
+            <el-icon class="search-ico"><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+
+      <div class="filters">
+        <div class="filter-block">
+          <span class="filter-label">{{ text("category") }}</span>
+          <el-radio-group v-model="categoryFilter" class="cat-radio-group" size="large">
+            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="productivity">productivity</el-radio-button>
+            <el-radio-button label="security">security</el-radio-button>
+            <el-radio-button label="support">support</el-radio-button>
+            <el-radio-button label="knowledge">knowledge</el-radio-button>
+            <el-radio-button label="other">其他</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="filter-block sort-block">
+          <span class="filter-label">{{ text("sort") }}</span>
+          <el-select v-model="sortBy" class="sort-select" placeholder="排序">
             <el-option label="最新上架" value="newest" />
             <el-option label="名称排序" value="popular" />
           </el-select>
         </div>
       </div>
-    </div>
+    </header>
 
     <div v-if="loading" class="muted loading">加载中…</div>
 
     <el-empty v-else-if="items.length === 0" :description="text('empty')" />
 
-    <el-row v-else :gutter="16" class="grid">
+    <el-row v-else :gutter="20" class="grid">
       <el-col v-for="s in items" :key="s.id" :xs="24" :sm="12" :md="8" :lg="6">
         <div
-          class="skill-card card-panel"
+          class="skill-card"
           role="button"
           tabindex="0"
           @click="goDetail(s)"
           @keydown.enter.prevent="goDetail(s)"
         >
-          <div class="name">{{ s.name }}</div>
-          <div class="meta muted">v{{ s.version }}</div>
-          <div class="tagline">
-            <el-tag size="small" effect="plain" type="info">{{ skillCategoryLabel(s) }}</el-tag>
+          <div class="skill-hero" :class="heroToneClass(s.category)">
+            <svg class="hero-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 2l7 4v8l-7 4-7-4V6l7-4zm0 2.2L6.5 7.1v6.3L12 17l5.5-3.6V7.1L12 4.2z"
+                opacity="0.95"
+              />
+            </svg>
           </div>
-          <p class="desc line-clamp-2">{{ s.description || "（无简介）" }}</p>
-          <div class="foot muted">作者：{{ authorLabel(s) }}</div>
+          <div class="skill-body">
+            <div class="name">{{ s.name }}</div>
+            <div class="tags-row">
+              <el-tag size="small" effect="plain" type="info">v{{ s.version }}</el-tag>
+              <el-tag size="small" effect="light" type="info">{{ skillCategoryLabel(s) }}</el-tag>
+            </div>
+            <p class="desc line-clamp-2">{{ s.description || "（无简介）" }}</p>
+            <div class="foot muted">作者：{{ authorLabel(s) }}</div>
+          </div>
         </div>
       </el-col>
     </el-row>
@@ -154,37 +191,126 @@ function text(key: string) {
 </template>
 
 <style scoped>
-.hero {
-  margin-bottom: 16px;
+.explore-page {
+  padding-bottom: 8px;
 }
 
-.search {
-  margin-top: 12px;
-  max-width: 520px;
+.hero {
+  margin-bottom: 32px;
+}
+
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--app-text);
+  letter-spacing: -0.02em;
+}
+
+.hero-sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--app-muted);
+  line-height: 1.6;
+}
+
+.hero-stat {
+  font-weight: 600;
+  border: 1px solid var(--app-border) !important;
+  background: var(--app-surface) !important;
+  color: var(--app-primary-deep) !important;
+}
+
+.search-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 560px;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 1px var(--app-border) inset;
+  background: var(--app-surface);
+  padding-left: 14px;
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: var(--focus-ring), 0 0 0 1px var(--app-primary-deep) inset;
+}
+
+.search-ico {
+  color: var(--app-placeholder);
+  font-size: 18px;
 }
 
 .filters {
-  margin-top: 12px;
+  margin-top: 20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
   align-items: flex-end;
+  gap: 12px;
 }
 
-.filter-item {
+.filter-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 200px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .filter-label {
   font-size: 12px;
+  color: var(--app-muted);
 }
 
-.filter-control {
-  width: 220px;
-  max-width: 100%;
+.cat-radio-group :deep(.el-radio-button__inner) {
+  border-radius: 999px !important;
+  border: 1px solid var(--app-border-strong) !important;
+  box-shadow: none !important;
+  padding: 8px 14px;
+  font-weight: 500;
+}
+
+.cat-radio-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-radius: 999px !important;
+}
+
+.cat-radio-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: 999px !important;
+}
+
+.cat-radio-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background-color: var(--app-primary) !important;
+  border-color: var(--app-primary) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.sort-block {
+  margin-left: auto;
+}
+
+.sort-select {
+  width: 140px;
+}
+
+.sort-select :deep(.el-select__wrapper) {
+  min-height: 40px;
+  border-radius: var(--radius-control);
 }
 
 .loading {
@@ -192,53 +318,106 @@ function text(key: string) {
 }
 
 .grid {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .skill-card {
   height: 100%;
+  background: var(--app-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--app-border);
 }
 
 .skill-card:hover {
-  border-color: #a3a3a3;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
 }
 
 .skill-card:focus-visible {
-  outline: 2px solid var(--app-border);
+  outline: 2px solid var(--app-primary-deep);
   outline-offset: 2px;
 }
 
+.skill-hero {
+  height: 80px;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.tone-productivity {
+  background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%);
+}
+
+.tone-security {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+}
+
+.tone-support {
+  background: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+}
+
+.tone-knowledge {
+  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+}
+
+.tone-other,
+.tone-default {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+.hero-icon {
+  width: 40px;
+  height: 40px;
+  opacity: 0.95;
+}
+
+.skill-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .name {
-  font-weight: 700;
   font-size: 16px;
+  font-weight: 700;
+  color: var(--app-text);
+  margin-top: 12px;
 }
 
-.meta {
+.tags-row {
   margin-top: 6px;
-  font-size: 12px;
-}
-
-.tagline {
-  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .desc {
   margin: 10px 0 0;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.5;
+  color: var(--app-muted);
+  flex: 1;
 }
 
 .foot {
-  margin-top: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
   font-size: 12px;
 }
 
 .pager {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 </style>

@@ -51,6 +51,12 @@ function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
   return scan.passed ? "ok" : "bad";
 }
 
+function scanTone(t: string) {
+  if (t === "semgrep") return "tone-semgrep";
+  if (t === "clamav") return "tone-clamav";
+  return "tone-llm";
+}
+
 function apiErrorDetail(err: unknown): string {
   const e = err as { response?: { data?: { detail?: unknown } } };
   const d = e.response?.data?.detail;
@@ -117,8 +123,8 @@ function text(key: string) {
     back: "返回市场",
     meta: "元信息",
     desc: "描述",
-    scanSum: "扫描结果摘要",
-    dlZip: "下载 zip",
+    scanSum: "扫描结果",
+    dlZip: "下载",
     installOc: "安装到 OpenClaw",
   };
   return map[key] ?? key;
@@ -129,57 +135,77 @@ onMounted(() => void load());
 
 <template>
   <div class="detail-page">
-    <div class="topbar">
-      <el-button class="neutral" plain @click="router.push({ name: 'explore' })">{{ text("back") }}</el-button>
-    </div>
-
     <div v-if="loading" class="muted">{{ text("loading") }}</div>
 
-    <div v-else-if="!detail" class="card-panel">
+    <div v-else-if="!detail" class="empty-card card-panel">
       <p class="muted">未找到 Skill 或无权查看。</p>
+      <el-button class="mt" type="primary" @click="router.push({ name: 'explore' })">{{ text("back") }}</el-button>
     </div>
 
     <div v-else class="stack">
-      <div class="card-panel head">
-        <div class="title-row">
-          <div class="title">{{ detail.name }}</div>
-          <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
-          <el-tag v-if="detail.category" effect="plain" type="info">{{ detail.category }}</el-tag>
-        </div>
-        <div v-if="detail.status === 'published'" class="actions">
-          <el-button class="neutral" plain @click="onDownloadZip">{{ text("dlZip") }}</el-button>
-          <el-button type="success" :loading="installing" @click="onInstallOpenClaw">{{ text("installOc") }}</el-button>
-        </div>
-      </div>
+      <el-breadcrumb separator="/" class="crumb">
+        <el-breadcrumb-item :to="{ name: 'explore' }">应用市场</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ detail.name }}</el-breadcrumb-item>
+      </el-breadcrumb>
 
-      <div class="card-panel">
-        <div class="section-title">{{ text("desc") }}</div>
-        <p class="body">{{ detail.description || "（无描述）" }}</p>
-      </div>
-
-      <div class="card-panel">
-        <div class="section-title">{{ text("meta") }}</div>
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="作者">{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : "—" }}</el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ formatTime(detail.created_at) }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ statusLabel(detail.status) }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-
-      <div class="card-panel">
-        <div class="section-title">{{ text("scanSum") }}</div>
-        <div class="scan-row">
-          <div v-for="row in layers" :key="row.type" class="scan-item">
-            <div class="scan-name">{{ layerTitle(row.type) }}</div>
-            <div class="scan-ico">
-              <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="spin"><Loading /></el-icon>
-              <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="ok"><CircleCheck /></el-icon>
-              <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="bad"><CircleClose /></el-icon>
-              <el-icon v-else class="warn"><WarningFilled /></el-icon>
-            </div>
+      <section class="main-card card-panel">
+        <div class="title-block">
+          <h1 class="title">{{ detail.name }}</h1>
+          <div class="title-tags">
+            <el-tag effect="light" type="info">{{ statusLabel(detail.status) }}</el-tag>
+            <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
+            <el-tag v-if="detail.category" effect="plain" type="info">{{ detail.category }}</el-tag>
           </div>
         </div>
-      </div>
+
+        <p class="body">{{ detail.description || "（无描述）" }}</p>
+
+        <div class="meta-line muted">
+          <span>作者：{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : "—" }}</span>
+          <span class="dot">·</span>
+          <span>提交时间：{{ formatTime(detail.created_at) }}</span>
+        </div>
+
+        <div v-if="detail.status === 'published'" class="actions">
+          <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ text("dlZip") }}</el-button>
+          <el-button size="large" class="act-outline" plain :loading="installing" @click="onInstallOpenClaw">{{
+            text("installOc")
+          }}</el-button>
+        </div>
+      </section>
+
+      <section class="scan-section">
+        <h2 class="section-title">{{ text("scanSum") }}</h2>
+        <el-row :gutter="16">
+          <el-col v-for="row in layers" :key="row.type" :xs="24" :md="8">
+            <div class="scan-card" :class="scanTone(row.type)">
+              <div class="scan-ico" aria-hidden="true">
+                <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="spin"><Loading /></el-icon>
+                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="ico-ok"><CircleCheck /></el-icon>
+                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="ico-bad"><CircleClose /></el-icon>
+                <el-icon v-else class="ico-warn"><WarningFilled /></el-icon>
+              </div>
+              <div class="scan-info">
+                <div class="scan-name">{{ layerTitle(row.type) }}</div>
+                <div class="scan-badge">
+                  <template v-if="scanIcon(row.scan, detail.status) === 'loading'">
+                    <el-tag type="info" effect="plain" size="small">待扫描</el-tag>
+                  </template>
+                  <template v-else-if="scanIcon(row.scan, detail.status) === 'warn'">
+                    <el-tag type="info" effect="plain" size="small">N/A</el-tag>
+                  </template>
+                  <template v-else-if="row.scan?.passed">
+                    <el-tag type="success" effect="dark" size="small">PASS</el-tag>
+                  </template>
+                  <template v-else>
+                    <el-tag type="danger" effect="dark" size="small">FAIL</el-tag>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </section>
     </div>
   </div>
 </template>
@@ -188,96 +214,173 @@ onMounted(() => void load());
 .detail-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.topbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.neutral {
-  border-color: var(--app-border);
-  color: var(--app-text);
+  gap: 16px;
 }
 
 .stack {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
+.crumb {
+  font-size: 13px;
 }
 
-.title-row {
+.crumb :deep(.el-breadcrumb__inner) {
+  font-weight: 500;
+  color: var(--app-muted);
+}
+
+.crumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.main-card {
+  padding: 24px;
+}
+
+.title-block {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
-  align-items: center;
 }
 
 .title {
-  font-size: 20px;
+  margin: 0;
+  font-size: 24px;
   font-weight: 700;
+  color: var(--app-text);
+  line-height: 1.25;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 10px;
+.title-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .body {
-  margin: 0;
-  line-height: 1.7;
+  margin: 16px 0 0;
+  line-height: 1.6;
+  color: var(--app-text);
+  font-size: 14px;
+}
+
+.meta-line {
+  margin-top: 14px;
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dot {
+  opacity: 0.45;
+}
+
+.actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.act-pri {
+  min-width: 120px;
+  font-weight: 600;
+  border-radius: var(--radius-control);
+}
+
+.act-outline {
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  border-color: var(--app-primary) !important;
+  color: var(--app-primary) !important;
+  background: var(--app-surface) !important;
+}
+
+.act-outline:hover {
+  background: rgba(26, 26, 46, 0.06) !important;
+}
+
+.section-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--app-text);
 }
 
-.scan-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 900px) {
-  .scan-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.scan-item {
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 12px;
+.scan-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: #fafafa;
+  gap: 14px;
+  background: var(--app-surface);
+  border-radius: var(--radius-control);
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  box-shadow: var(--shadow-card);
+  border-left-width: 4px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.tone-semgrep {
+  border-left-color: #6366f1;
+}
+
+.tone-clamav {
+  border-left-color: #22c55e;
+}
+
+.tone-llm {
+  border-left-color: #3b82f6;
+}
+
+.scan-ico {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 46, 0.06);
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.scan-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .scan-name {
   font-weight: 600;
+  color: var(--app-text);
+  font-size: 14px;
 }
 
-.scan-ico {
-  font-size: 22px;
+.scan-badge {
+  display: flex;
+  align-items: center;
 }
 
-.ok {
-  color: #22c55e;
+.ico-ok {
+  color: var(--app-success);
 }
 
-.bad {
-  color: #e74c3c;
+.ico-bad {
+  color: var(--app-danger);
 }
 
-.warn {
-  color: #6b7280;
+.ico-warn {
+  color: var(--app-warning);
 }
 
 .spin {
@@ -292,5 +395,13 @@ onMounted(() => void load());
   to {
     transform: rotate(360deg);
   }
+}
+
+.empty-card {
+  text-align: left;
+}
+
+.mt {
+  margin-top: 12px;
 }
 </style>

@@ -48,12 +48,11 @@ async function load() {
 function text(key: string) {
   const map: Record<string, string> = {
     headline: "看板总览",
-    sub: "KPI 来自多次 GET /api/skills（按 status 取 total 字段后汇总）。",
+    sub: "汇总平台内各状态 Skill 数量（不包含已下架等状态的扩展统计）。",
     total: "总 Skill 数",
     scan: "扫描中",
     pending: "待审批",
     pub: "已上架",
-    rej: "已驳回",
     goExplore: "浏览市场",
     goSubmit: "提交应用",
     goReview: "审批工作台",
@@ -74,77 +73,184 @@ onMounted(() => void load());
 </script>
 
 <template>
-  <div class="dash-wrap">
-    <div class="card-panel">
-      <h2 class="page-title">{{ text("headline") }}</h2>
-      <p class="muted">{{ text("sub") }}</p>
+  <div class="dash-page">
+    <header class="page-head card-panel">
+      <h2 class="page-heading">{{ text("headline") }}</h2>
+      <p class="muted page-lead">{{ text("sub") }}</p>
+    </header>
 
-      <el-row :gutter="12" class="kpi-row" v-loading="loading">
-        <el-col :xs="12" :md="8" :lg="4">
-          <div class="kpi">
-            <b>{{ overview.total }}</b><span>{{ text("total") }}</span>
+    <el-row :gutter="16" class="kpi-row" v-loading="loading">
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="kpi-card">
+          <div class="icon-wrap tone-total" aria-hidden="true">
+            <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                fill="currentColor"
+                d="M4 17h16v3H4v-3zm2-13h12v11H6V4zm2 9h8V9H8v4z"
+                opacity=".95"
+              />
+            </svg>
           </div>
-        </el-col>
-        <el-col :xs="12" :md="8" :lg="4">
-          <div class="kpi">
-            <b>{{ overview.scanning }}</b><span>{{ text("scan") }}</span>
+          <div class="kpi-text">
+            <div class="kpi-num">{{ overview.total }}</div>
+            <div class="kpi-label muted">{{ text("total") }}</div>
           </div>
-        </el-col>
-        <el-col :xs="12" :md="8" :lg="4">
-          <div class="kpi">
-            <b>{{ overview.pending_review }}</b><span>{{ text("pending") }}</span>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="kpi-card">
+          <div class="icon-wrap tone-scan" aria-hidden="true">
+            <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                fill="currentColor"
+                d="M7 18h10v3H7v-3zM15 11h6v11h-2v-9h-4v2h-8V4h2v15h11v2H13V9zM7 14V4h2v10H7zm4-10h2v5h-2V4z"
+              />
+            </svg>
           </div>
-        </el-col>
-        <el-col :xs="12" :md="8" :lg="4">
-          <div class="kpi">
-            <b>{{ overview.published }}</b><span>{{ text("pub") }}</span>
+          <div class="kpi-text">
+            <div class="kpi-num">{{ overview.scanning }}</div>
+            <div class="kpi-label muted">{{ text("scan") }}</div>
           </div>
-        </el-col>
-        <el-col :xs="12" :md="8" :lg="4">
-          <div class="kpi">
-            <b>{{ overview.rejected }}</b><span>{{ text("rej") }}</span>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="kpi-card">
+          <div class="icon-wrap tone-pending" aria-hidden="true">
+            <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                fill="currentColor"
+                d="M12 20a8 8 0 110-16 8 8 0 010 16zm1-13h-2v6l5 3 .9-1.5-3.9-2.3V7z"
+              />
+            </svg>
           </div>
-        </el-col>
-      </el-row>
+          <div class="kpi-text">
+            <div class="kpi-num">{{ overview.pending_review }}</div>
+            <div class="kpi-label muted">{{ text("pending") }}</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :lg="6">
+        <div class="kpi-card">
+          <div class="icon-wrap tone-pub" aria-hidden="true">
+            <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M10 15.2l-3.5-3.5-1.4 1.4L10 18l7.1-7.1-1.4-1.4L10 15.2z" />
+            </svg>
+          </div>
+          <div class="kpi-text">
+            <div class="kpi-num">{{ overview.published }}</div>
+            <div class="kpi-label muted">{{ text("pub") }}</div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
 
-      <div class="actions">
-        <el-button type="primary" plain @click="router.push({ name: 'explore' })">{{ text("goExplore") }}</el-button>
-        <el-button type="success" plain @click="router.push({ name: 'submit' })">{{ text("goSubmit") }}</el-button>
-        <el-button type="danger" plain @click="goReview">{{ text("goReview") }}</el-button>
-      </div>
+    <div class="actions card-panel">
+      <el-button type="primary" plain @click="router.push({ name: 'explore' })">{{ text("goExplore") }}</el-button>
+      <el-button type="success" plain @click="router.push({ name: 'submit' })">{{ text("goSubmit") }}</el-button>
+      <el-button type="danger" plain @click="goReview">{{ text("goReview") }}</el-button>
     </div>
   </div>
 </template>
 
 <style scoped>
+.dash-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-head {
+  padding: 24px;
+}
+
+.page-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.page-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .kpi-row {
-  margin-top: 12px;
+  margin-top: 2px;
 }
 
-.kpi {
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--app-surface);
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 16px;
-  display: grid;
-  gap: 6px;
-  background: #fafafa;
+  border-radius: var(--radius-card);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  height: 100%;
+  box-sizing: border-box;
 }
 
-.kpi b {
-  font-size: 24px;
-  font-weight: 700;
+.kpi-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.dash-ico {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.tone-total {
+  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+}
+
+.tone-scan {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+}
+
+.tone-pending {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+}
+
+.tone-pub {
+  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+}
+
+.kpi-text {
+  min-width: 0;
+}
+
+.kpi-num {
+  font-size: 28px;
+  font-weight: 800;
   color: var(--app-text);
+  line-height: 1.05;
 }
 
-.kpi span {
-  color: var(--app-muted);
-  font-size: 12px;
+.kpi-label {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .actions {
-  margin-top: 16px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  padding: 18px 24px;
 }
 </style>

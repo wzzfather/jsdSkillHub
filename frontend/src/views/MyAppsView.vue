@@ -33,6 +33,10 @@ function statusLabel(status: string) {
   return m[status] ?? status;
 }
 
+function rowClass({ row }: { row: Skill }) {
+  return row.status === "rejected" ? "row-rejected" : "";
+}
+
 const waitingStatuses = computed(() => new Set(["scanning", "pending_review"]));
 
 async function load() {
@@ -75,18 +79,18 @@ onMounted(() => void load());
 </script>
 
 <template>
-  <div>
-    <div class="card-panel">
-      <h2 class="page-title">我的应用</h2>
-      <p class="muted">你提交的 Skill（含扫描中、待审批、已上架等所有状态）。</p>
-    </div>
+  <div class="my-apps">
+    <header class="page-head card-panel">
+      <h2 class="page-heading">我的应用</h2>
+      <p class="muted page-lead">你提交的 Skill（含扫描中、待审批、已上架等所有状态）。</p>
+    </header>
 
-    <div v-if="loading" class="muted" style="padding: 12px">加载中…</div>
+    <div v-if="loading" class="muted" style="padding: 16px 4px">加载中…</div>
 
     <el-empty v-else-if="items.length === 0" description="暂无 Skill 记录" />
 
-    <div v-else class="card-panel" style="margin-top: 16px">
-      <el-table :data="items" stripe style="width: 100%">
+    <el-card v-else class="table-card" shadow="never">
+      <el-table :data="items" stripe class="apps-table" :row-class-name="rowClass" style="width: 100%">
         <el-table-column prop="name" label="名称" min-width="200">
           <template #default="{ row }">
             <span class="link" @click="goDetail(row)">{{ row.name }}</span>
@@ -98,7 +102,7 @@ onMounted(() => void load());
             {{ row.category || "—" }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="160">
+        <el-table-column prop="status" label="状态" min-width="200">
           <template #default="{ row }">
             <template v-if="waitingStatuses.has(row.status)">
               <el-tag type="warning" size="small">等待处理</el-tag>
@@ -107,7 +111,7 @@ onMounted(() => void load());
             <template v-else-if="row.status === 'offline'">
               <el-tag type="info" size="small">已下架</el-tag>
               <div v-if="row.offline_comment" class="offline-reason muted">
-                原因：{{ row.offline_comment }}
+                下架原因：{{ row.offline_comment }}
               </div>
             </template>
             <el-tag v-else :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
@@ -119,13 +123,7 @@ onMounted(() => void load());
               <el-button text type="primary" size="small" @click="goDetail(row)">查看详情</el-button>
             </template>
             <template v-else-if="row.status === 'rejected'">
-              <el-button
-                text
-                type="primary"
-                size="small"
-                :loading="resubmitingId === row.id"
-                @click="onResubmit(row)"
-              >
+              <el-button text type="primary" size="small" :loading="resubmitingId === row.id" @click="onResubmit(row)">
                 重新提交
               </el-button>
             </template>
@@ -136,35 +134,65 @@ onMounted(() => void load());
           </template>
         </el-table-column>
       </el-table>
-    </div>
+    </el-card>
   </div>
 </template>
 
 <style scoped>
-.page-title {
-  margin: 0 0 8px;
+.my-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-head {
+  padding: 24px;
+}
+
+.page-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.page-lead {
+  margin: 0;
+}
+
+.table-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.apps-table :deep(.cell) {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.apps-table :deep(tr.row-rejected > td:first-child) {
+  box-shadow: inset 4px 0 0 rgba(245, 158, 11, 0.45);
 }
 
 .link {
   color: var(--app-text);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .link:hover {
+  color: var(--app-primary-deep);
   text-decoration: underline;
 }
 
 .wait-hint {
   display: block;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
 }
 
 .offline-reason {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 12px;
-  line-height: 1.4;
-  max-width: 220px;
+  line-height: 1.45;
+  max-width: 360px;
 }
 </style>
