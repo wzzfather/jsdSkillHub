@@ -29,10 +29,10 @@ def package_object_key(skill: Skill) -> str:
 
 
 def skill_install_dir_name(skill_name: str) -> str:
-    """名称转小写、空白与下划线为连字符，并去掉非法字符。"""
+    """名称转安装目录名。保留中文、字母、数字，空白转连字符。"""
     raw = skill_name.strip().lower()
     raw = re.sub(r"[\s_]+", "-", raw)
-    raw = re.sub(r"[^a-z0-9\-]", "", raw)
+    raw = re.sub(r"[^\u4e00-\u9fff\w\-]", "", raw)
     raw = re.sub(r"-+", "-", raw).strip("-")
     return raw or "skill"
 
