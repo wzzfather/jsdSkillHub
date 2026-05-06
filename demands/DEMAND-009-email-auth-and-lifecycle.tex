@@ -1,0 +1,246 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-009}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{DEMAND-009：邮箱认证注册 + 上架下架流程完善}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+总需求编号 & D-015、D-016 \\
+前置需求 & D-011（MVP）、D-013（流转修复） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求背景}
+
+魏子政提出两个新需求：
+
+\begin{enumerate}[nosep]
+  \item \textbf{注册增加邮箱认证}：当前注册只填用户名+密码，无邮箱验证，缺少基本的安全认证手段
+  \item \textbf{上架下架流程缺失}：Skill 审批通过后上架了，但管理端没有下架入口；下架后也没有重新上架的审批流程
+\end{enumerate}
+
+\section{需求 1：邮箱认证注册（D-015）}
+
+\subsection{当前现状}
+
+\begin{itemize}[nosep]
+  \item User 模型字段：username、hashed\_password、role、is\_active
+  \item 注册接口：\texttt{POST /api/auth/register}，只需 username + password
+  \item 无邮箱字段、无验证码机制
+\end{itemize}
+
+\subsection{改造方案}
+
+\subsubsection{数据模型}
+
+User 表新增字段：
+\begin{itemize}[nosep]
+  \item \texttt{email}：VARCHAR(255)，UNIQUE，可为空（兼容旧数据）
+  \item \texttt{email\_verified}：BOOLEAN，默认 False
+\end{itemize}
+
+\subsubsection{注册流程}
+
+\begin{enumerate}[nosep]
+  \item 用户填写用户名、密码、邮箱
+  \item 后端校验邮箱格式、用户名唯一、邮箱唯一
+  \item 创建用户（\texttt{email\_verified=False}）
+  \item 后端生成 6 位验证码，存储到数据库（或内存缓存）
+  \item 后端发送验证码到邮箱（SMTP）
+  \item 前端跳转到验证码输入页
+  \item 用户输入验证码
+  \item 后端验证码匹配 → 设置 \texttt{email\_verified=True}
+  \item 注册完成，自动登录
+\end{enumerate}
+
+\subsubsection{MVP 简化方案}
+
+考虑到 SMTP 配置复杂，MVP 阶段采用\textbf{简化邮箱认证}：
+\begin{itemize}[nosep]
+  \item 注册时必须填写邮箱
+  \item 后端生成 6 位验证码，通过 \texttt{/api/auth/send-code} 返回给前端（模拟发送）
+  \item 前端显示验证码输入框，用户手动输入
+  \item 后端验证通过后 \texttt{email\_verified=True}
+  \item 注释中预留 SMTP 发送逻辑，后续接入真实邮箱服务
+\end{itemize}
+
+\subsubsection{接口变更}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{接口} & \textbf{变更} & \textbf{说明} \\
+\midrule
+\texttt{POST /api/auth/register} & 修改 & 新增 email 字段，创建用户时 email\_verified=False \\
+\texttt{POST /api/auth/send-code} & 新增 & 发送邮箱验证码（MVP：返回给前端） \\
+\texttt{POST /api/auth/verify-email} & 新增 & 验证邮箱验证码 \\
+\texttt{User 模型} & 修改 & 新增 email、email\_verified 字段 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{前端变更}
+
+\begin{itemize}[nosep]
+  \item RegisterView：新增邮箱输入框
+  \item 新增 VerifyEmailView：验证码输入页（6 位数字）
+  \item 注册成功后跳转到验证页，验证成功后跳转到登录页
+\end{itemize}
+
+\section{需求 2：上架下架流程完善（D-016）}
+
+\subsection{当前现状}
+
+\begin{itemize}[nosep]
+  \item Skill 状态流转：scanning → pending\_review → published / rejected
+  \item published 状态后没有下架入口
+  \item rejected 状态后没有重新提交入口
+\end{itemize}
+
+\subsection{完整状态流转}
+
+\begin{verbatim}
+上传 → scanning → pending_review → published（上架）
+                                       ↘ rejected（驳回）
+         published → offline（管理员下架）→ pending_review（重新上架审批）
+         rejected → pending_review（开发者重新提交）
+\end{verbatim}
+
+\subsection{具体改造}
+
+\subsubsection{后端新增接口}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{接口} & \textbf{权限} & \textbf{说明} \\
+\midrule
+\texttt{POST /api/skills/\{id\}/offline} & 管理员 & 下架已上架的 Skill（published → offline） \\
+\texttt{POST /api/skills/\{id\}/resubmit} & 作者 & 重新提交已驳回的 Skill（rejected → pending\_review） \\
+\texttt{POST /api/skills/\{id\}/republish} & 管理员 & 重新上架已下架的 Skill（offline → pending\_review） \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{审批工作台改造}
+
+\begin{itemize}[nosep]
+  \item 审批工作台只显示 \texttt{pending\_review} 状态的 Skill（已有逻辑，无需修改）
+  \item 管理员下架时需要填写下架原因（comment 字段）
+\end{itemize}
+
+\subsubsection{我的应用页面改造}
+
+\begin{itemize}[nosep]
+  \item published 状态：显示「查看」按钮（跳转详情页）
+  \item rejected 状态：显示「重新提交」按钮 → 调用 resubmit → 状态变为 pending\_review
+  \item offline 状态：显示「已下架」标签 + 下架原因
+  \item scanning / pending\_review 状态：显示等待状态
+\end{itemize}
+
+\subsubsection{管理端应用管理（admin/apps/）}
+
+\begin{itemize}[nosep]
+  \item 新增管理端应用列表页（或复用现有结构）
+  \item 显示所有 Skill（不限作者），支持筛选状态
+  \item published 状态的 Skill 有「下架」按钮
+  \item offline 状态的 Skill 有「重新上架」按钮
+\end{itemize}
+
+\section{任务拆解}
+
+\subsection{后端}
+
+\begin{enumerate}[nosep]
+  \item User 模型新增 email、email\_verified 字段
+  \item Alembic 迁移脚本
+  \item 修改 RegisterRequest schema 新增 email
+  \item 修改 /auth/register 接口
+  \item 新增 /auth/send-code 接口（MVP：返回验证码）
+  \item 新增 /auth/verify-email 接口
+  \item 新增 /skills/\{id\}/offline 接口（管理员下架）
+  \item 新增 /skills/\{id\}/resubmit 接口（开发者重新提交）
+  \item 新增 /skills/\{id\}/republish 接口（管理员重新上架）
+  \item 修改 /skills/mine 接口返回所有状态
+\end{enumerate}
+
+\subsection{前端}
+
+\begin{enumerate}[nosep]
+  \item RegisterView 新增邮箱输入框
+  \item 新增 VerifyEmailView 验证码页面
+  \item Router 新增 /verify-email 路由
+  \item api/auth.ts 新增 sendCode、verifyEmail 函数
+  \item api/types.ts 新增对应类型
+  \item MyAppsView 新增 rejected→重新提交、offline→已下架标签
+  \item SkillDetailView 根据状态显示不同操作按钮
+\end{enumerate}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[$\square$] 注册时必须填写邮箱
+  \item[$\square$] 验证码验证通过后才能登录（或 email\_verified=True）
+  \item[$\square$] 管理员可以在应用管理中下架已上架的 Skill
+  \item[$\square$] 下架后 Skill 状态变为 offline，我的应用中显示已下架
+  \item[$\square$] 管理员可以重新上架已下架的 Skill（进入审批流程）
+  \item[$\square$] 开发者可以重新提交已驳回的 Skill（进入审批流程）
+  \item[$\square$] 审批工作台只显示 pending\_review 状态
+  \item[$\square$] npm run build 无报错
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}

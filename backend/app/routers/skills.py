@@ -12,14 +12,16 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal, get_db
-from app.dependencies import get_current_user, get_current_user_optional
+from app.dependencies import get_current_user, get_current_user_optional, require_admin
 from app.models.scan_result import ScanResult
 from app.models.skill import Skill
 from app.models.skill_version import SkillVersion
 from app.models.user import User
 from app.schemas.common import (
+    ActionResponse,
     DownloadResponse,
     InstallResponse,
+    OfflineRequest,
     PaginatedSkills,
     ScanLayerSummary,
     SkillDetailResponse,
@@ -162,6 +164,86 @@ async def list_my_skills(
     rows = (await db.scalars(stmt)).all()
     items = [SkillResponse.model_validate(r) for r in rows]
     return PaginatedSkills(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post("/{skill_id}/offline", response_model=ActionResponse)
+async def offline_skill(
+    skill_id: str,
+    body: OfflineRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+) -> ActionResponse:
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "未找到", "code": "NOT_FOUND"},
+        )
+    if skill.status != "published":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "仅已上架技能可下架", "code": "INVALID_STATE"},
+        )
+    comment = (body.comment or "").strip()
+    if not comment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "请填写下架原因", "code": "COMMENT_REQUIRED"},
+        )
+    skill.status = "offline"
+    skill.offline_comment = comment
+    await db.commit()
+    return ActionResponse(message="已下架", new_status="offline")
+
+
+@router.post("/{skill_id}/resubmit", response_model=ActionResponse)
+async def resubmit_skill(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ActionResponse:
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "未找到", "code": "NOT_FOUND"},
+        )
+    if skill.author_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"detail": "仅作者可重新提交", "code": "FORBIDDEN"},
+        )
+    if skill.status != "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "仅已驳回技能可重新提交", "code": "INVALID_STATE"},
+        )
+    skill.status = "pending_review"
+    await db.commit()
+    return ActionResponse(message="已重新提交，进入审批队列", new_status="pending_review")
+
+
+@router.post("/{skill_id}/republish", response_model=ActionResponse)
+async def republish_skill(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+) -> ActionResponse:
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "未找到", "code": "NOT_FOUND"},
+        )
+    if skill.status != "offline":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "仅已下架技能可重新上架", "code": "INVALID_STATE"},
+        )
+    skill.status = "pending_review"
+    skill.offline_comment = None
+    await db.commit()
+    return ActionResponse(message="已提交重新上架审批", new_status="pending_review")
 
 
 def _require_published_package(skill: Skill | None) -> Skill:

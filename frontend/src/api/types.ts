@@ -7,6 +7,7 @@ export interface Skill {
   status: string;
   category: string | null;
   package_url: string | null;
+  offline_comment: string | null;
   created_at: string;
 }
 
@@ -61,4 +62,16 @@ export interface UserPublic {
   id: string;
   username: string;
   role: string;
+  email: string | null;
+  email_verified: boolean;
+}
+
+export interface SendCodeResponse {
+  message: string;
+  code: string;
+}
+
+export interface ActionResponse {
+  message: string;
+  new_status: string;
 }

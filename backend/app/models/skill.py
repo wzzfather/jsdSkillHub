@@ -20,6 +20,7 @@ class Skill(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     category: Mapped[str | None] = mapped_column(String(128), nullable=True)
     package_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    offline_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     author = relationship("User", back_populates="skills_authored")
     versions = relationship("SkillVersion", back_populates="skill", cascade="all, delete-orphan")

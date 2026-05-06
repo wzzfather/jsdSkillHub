@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class TokenResponse(BaseModel):
@@ -16,12 +16,49 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=6, max_length=128)
+    email: EmailStr | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def empty_email_as_none(cls, v: object) -> object:
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_min_length(cls, v: EmailStr | None) -> EmailStr | None:
+        if v is None:
+            return None
+        if len(str(v)) < 5:
+            raise ValueError("邮箱长度至少 5 个字符")
+        return v
+
+
+class SendCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class SendCodeResponse(BaseModel):
+    """MVP：响应体携带验证码；接入 SMTP 后应移除 code 字段，仅发送邮件。"""
+
+    message: str
+    code: str
 
 
 class UserPublic(BaseModel):
     id: str
     username: str
     role: str
+    email: str | None = None
+    email_verified: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -42,6 +79,7 @@ class SkillResponse(BaseModel):
     status: str
     category: str | None
     package_url: str | None
+    offline_comment: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -69,6 +107,15 @@ class ReviewActionRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class OfflineRequest(BaseModel):
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class ActionResponse(BaseModel):
+    message: str
+    new_status: str
 
 
 class DownloadResponse(BaseModel):

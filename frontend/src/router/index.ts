@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth";
 
 const LoginView = () => import("@/views/LoginView.vue");
 const RegisterView = () => import("@/views/RegisterView.vue");
+const VerifyEmailView = () => import("@/views/VerifyEmailView.vue");
 const ExploreView = () => import("@/views/ExploreView.vue");
 const SkillDetailView = () => import("@/views/SkillDetailView.vue");
 const SubmitView = () => import("@/views/SubmitView.vue");
@@ -23,6 +24,7 @@ export const router = createRouter({
     },
     { path: "/login", name: "login", component: LoginView, meta: { guest: true } },
     { path: "/register", name: "register", component: RegisterView, meta: { guest: true } },
+    { path: "/verify-email", name: "verify-email", component: VerifyEmailView },
     { path: "/explore", name: "explore", component: ExploreView },
     {
       path: "/explore/:id",

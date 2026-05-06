@@ -11,5 +11,7 @@ class User(Base, TimestampMixin):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="user")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     skills_authored = relationship("Skill", back_populates="author")

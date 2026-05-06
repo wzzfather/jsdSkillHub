@@ -10,6 +10,7 @@ const auth = useAuthStore();
 
 const form = reactive({
   username: "",
+  email: "",
   password: "",
   confirm: "",
 });
@@ -25,14 +26,27 @@ async function onSubmit() {
     ElMessage.warning("两次密码不一致");
     return;
   }
+  const emailTrim = form.email.trim();
+  if (emailTrim && emailTrim.length < 5) {
+    ElMessage.warning("邮箱长度过短");
+    return;
+  }
   loading.value = true;
   try {
-    await register({ username: form.username.trim(), password: form.password });
+    const { data } = await register({
+      username: form.username.trim(),
+      password: form.password,
+      ...(emailTrim ? { email: emailTrim } : {}),
+    });
     ElMessage.success("注册成功");
-    await auth.login(form.username.trim(), form.password);
-    await router.replace("/explore");
+    if (data.email && !data.email_verified) {
+      await router.replace({ name: "verify-email", query: { email: data.email } });
+    } else {
+      await auth.login(form.username.trim(), form.password);
+      await router.replace("/explore");
+    }
   } catch {
-    ElMessage.error("注册失败，用户名可能已被占用");
+    ElMessage.error("注册失败，用户名或邮箱可能已被占用");
   } finally {
     loading.value = false;
   }
@@ -42,6 +56,7 @@ function text(key: string) {
   const map: Record<string, string> = {
     title: "注册",
     user: "用户名",
+    email: "邮箱（可选，填写后需验证）",
     pass: "密码",
     confirm: "确认密码",
     btn: "注册",
@@ -59,6 +74,9 @@ function text(key: string) {
       <el-form label-position="top" @submit.prevent="onSubmit">
         <el-form-item :label="text('user')">
           <el-input v-model="form.username" autocomplete="username" />
+        </el-form-item>
+        <el-form-item :label="text('email')">
+          <el-input v-model="form.email" type="email" autocomplete="email" placeholder="name@company.com" />
         </el-form-item>
         <el-form-item :label="text('pass')">
           <el-input v-model="form.password" type="password" autocomplete="new-password" />

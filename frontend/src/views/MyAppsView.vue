@@ -2,12 +2,13 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { fetchMySkills } from "@/api/skills";
+import { fetchMySkills, resubmitSkill } from "@/api/skills";
 import type { Skill } from "@/api/types";
 
 const router = useRouter();
 const loading = ref(false);
 const items = ref<Skill[]>([]);
+const resubmitingId = ref<string | null>(null);
 
 function statusType(status: string) {
   const m: Record<string, string> = {
@@ -15,6 +16,7 @@ function statusType(status: string) {
     pending_review: "warning",
     published: "success",
     rejected: "danger",
+    offline: "info",
   };
   return (m[status] ?? "info") as "" | "success" | "warning" | "danger" | "info";
 }
@@ -25,15 +27,17 @@ function statusLabel(status: string) {
     pending_review: "待审批",
     published: "已上架",
     rejected: "已驳回",
+    offline: "已下架",
     draft: "草稿",
   };
   return m[status] ?? status;
 }
 
+const waitingStatuses = computed(() => new Set(["scanning", "pending_review"]));
+
 async function load() {
   loading.value = true;
   try {
-    // Fetch all pages to get complete list
     const all: Skill[] = [];
     let p = 1;
     while (true) {
@@ -52,6 +56,19 @@ async function load() {
 
 function goDetail(s: Skill) {
   router.push({ name: "skill-detail", params: { id: s.id } });
+}
+
+async function onResubmit(s: Skill) {
+  resubmitingId.value = s.id;
+  try {
+    await resubmitSkill(s.id);
+    ElMessage.success("已重新提交，已进入审批");
+    await load();
+  } catch {
+    ElMessage.error("重新提交失败");
+  } finally {
+    resubmitingId.value = null;
+  }
 }
 
 onMounted(() => void load());
@@ -81,14 +98,41 @@ onMounted(() => void load());
             {{ row.category || "—" }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="status" label="状态" width="160">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <template v-if="waitingStatuses.has(row.status)">
+              <el-tag type="warning" size="small">等待处理</el-tag>
+              <span class="muted wait-hint">{{ statusLabel(row.status) }}</span>
+            </template>
+            <template v-else-if="row.status === 'offline'">
+              <el-tag type="info" size="small">已下架</el-tag>
+              <div v-if="row.offline_comment" class="offline-reason muted">
+                原因：{{ row.offline_comment }}
+              </div>
+            </template>
+            <el-tag v-else :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="140">
           <template #default="{ row }">
-            <el-button text type="primary" size="small" @click="goDetail(row)">详情</el-button>
+            <template v-if="row.status === 'published'">
+              <el-button text type="primary" size="small" @click="goDetail(row)">查看详情</el-button>
+            </template>
+            <template v-else-if="row.status === 'rejected'">
+              <el-button
+                text
+                type="primary"
+                size="small"
+                :loading="resubmitingId === row.id"
+                @click="onResubmit(row)"
+              >
+                重新提交
+              </el-button>
+            </template>
+            <template v-else-if="!waitingStatuses.has(row.status) && row.status !== 'offline'">
+              <el-button text type="primary" size="small" @click="goDetail(row)">详情</el-button>
+            </template>
+            <span v-else class="muted">—</span>
           </template>
         </el-table-column>
       </el-table>
@@ -109,5 +153,18 @@ onMounted(() => void load());
 
 .link:hover {
   text-decoration: underline;
+}
+
+.wait-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.offline-reason {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 220px;
 }
 </style>

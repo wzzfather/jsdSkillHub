@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.skill import Skill
@@ -11,7 +11,38 @@ from app.utils.password import hash_password
 logger = logging.getLogger(__name__)
 
 
+async def _ensure_schema_columns(session: AsyncSession) -> None:
+    """启动时补齐缺失列（兼容未跑迁移的旧库）。生产环境优先使用 Alembic。"""
+    column_ddls: list[tuple[str, str, str]] = [
+        ("users", "email", "ALTER TABLE users ADD COLUMN email VARCHAR(255)"),
+        ("users", "email_verified", "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT false"),
+        ("skills", "offline_comment", "ALTER TABLE skills ADD COLUMN offline_comment TEXT"),
+    ]
+    for table_name, column_name, ddl in column_ddls:
+        chk = await session.execute(
+            text(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = :t AND column_name = :c
+                """
+            ),
+            {"t": table_name, "c": column_name},
+        )
+        if chk.first() is None:
+            await session.execute(text(ddl))
+            logger.info("已执行 schema 补丁: %s.%s", table_name, column_name)
+
+    await session.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_nullable ON users (email) WHERE email IS NOT NULL"
+        )
+    )
+
+    await session.commit()
+
+
 async def run_startup_seed(session: AsyncSession) -> None:
+    await _ensure_schema_columns(session)
     try:
         await ensure_bucket()
     except Exception as exc:
