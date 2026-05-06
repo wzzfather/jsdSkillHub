@@ -32,7 +32,7 @@
 
 \title{\textbf{TRD：技术需求文档}\\[0.5em]\large Technical Requirements Document}
 \author{万能产品小助手（PM AI）\\魏子政 审阅}
-\date{2026-05-06 / 版本 v0.2}
+\date{2026-05-06 / 版本 v1.0}
 
 \begin{document}
 
@@ -60,15 +60,11 @@
   db/.style={cylinder, draw=accent, fill=accent!5, shape border rotate=90, minimum width=1.5cm, minimum height=0.8cm, align=center, font=\small, aspect=0.25},
   arrow/.style={-{Stealth[length=2.5mm]}, thick, graytext}
 ]
-  % 前端
-  \node[box] (fe) {Vue 3 + Element Plus\\（SPA）};
-  % 后端
-  \node[box, right=2cm of fe] (be) {FastAPI\\（async API）};
-  % 存储
+  \node[box] (fe) {Vue 3 + Element Plus\\（SPA，黑白灰风格）};
+  \node[box, right=2cm of fe] (be) {FastAPI\\（async，JWT 认证）};
   \node[db, below left=1.2cm and 0.5cm of be] (pg) {PostgreSQL};
   \node[db, below=1.2cm of be] (os) {OpenSearch};
   \node[db, below right=1.2cm and 0.5cm of be] (minio) {MinIO};
-  % 扫描
   \node[box, right=2cm of be] (scan) {三层扫描\\Semgrep+ClamAV+LLM};
 
   \draw[arrow] (fe) -- node[above, font=\footnotesize]{HTTP/REST} (be);
@@ -80,7 +76,7 @@
 \end{tikzpicture}
 \end{center}
 
-\section{API 设计}
+\section{API 设计（已实现）}
 
 \subsection{接口规范}
 
@@ -89,11 +85,11 @@
   \item 请求/响应格式：JSON
   \item 认证方式：Bearer Token（JWT）
   \item 分页参数：\texttt{page} + \texttt{page\_size}，默认 20 条/页
-  \item 列表响应格式：\texttt{\{items: [...], total: N, page: N, page\_size: N\}}
-  \item 错误响应格式：\texttt{\{detail: "错误描述", code: "ERROR\_CODE"\}}
+  \item 列表响应：\texttt{\{items: [...], total, page, page\_size\}}
+  \item 错误响应：\texttt{\{detail: "描述", code: "ERROR\_CODE"\}}
 \end{itemize}
 
-\subsection{核心接口}
+\subsection{认证接口}
 
 \begin{table}[h]
 \centering
@@ -101,32 +97,52 @@
 \toprule
 \textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{权限} \\
 \midrule
-POST & /api/auth/login & 登录 & 公开 \\
-POST & /api/auth/register & 注册 & 公开 \\
-POST & /api/auth/refresh & 刷新 Token & 登录 \\
-GET & /api/apps & 应用列表（分页/筛选） & 登录 \\
-POST & /api/apps & 创建应用 & 开发者 \\
-GET & /api/apps/\{id\} & 应用详情 & 登录 \\
-PUT & /api/apps/\{id\} & 更新应用 & 开发者/管理员 \\
-DELETE & /api/apps/\{id\} & 删除应用 & 管理员 \\
-POST & /api/apps/\{id\}/upload & 上传应用包 & 开发者 \\
-POST & /api/apps/\{id\}/submit & 提交应用（触发审批+扫描） & 开发者 \\
-GET & /api/search?q=\{kw\} & 搜索应用 & 登录 \\
-GET & /api/reviews & 审批列表 & 审批人/管理员 \\
-POST & /api/reviews/\{id\}/approve & 通过审批 & 审批人 \\
-POST & /api/reviews/\{id\}/reject & 驳回审批 & 审批人 \\
-POST & /api/apps/\{id\}/install & 安装应用 & 登录 \\
-GET & /api/scans/\{id\} & 查看扫描报告 & 登录 \\
-GET & /api/users & 用户列表 & 管理员 \\
-PUT & /api/users/\{id\}/role & 修改用户角色 & 管理员 \\
-GET & /health & 健康检查 & 公开 \\
+POST & /api/auth/register & 注册（username + password + email） & 公开 \\
+POST & /api/auth/login & 登录（username + password） & 公开 \\
+POST & /api/auth/send-code & 发送邮箱验证码（返回 6 位码） & 公开 \\
+POST & /api/auth/verify-email & 验证邮箱（email + code），验证通过自动登录 & 公开 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{数据库设计}
+\subsection{Skill 接口}
 
-\subsection{核心表}
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lllX}
+\toprule
+\textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{权限} \\
+\midrule
+GET & /api/skills & Skill 列表（category + sort + status + page） & 登录 \\
+POST & /api/skills/upload & 上传 Skill zip 包 & 登录 \\
+GET & /api/skills/mine & 我的 Skill（所有状态） & 登录 \\
+GET & /api/skills/\{id\} & Skill 详情（含扫描结果） & 登录 \\
+GET & /api/skills/\{id\}/download & 下载 zip（MinIO 预签名 URL） & 登录 \\
+POST & /api/skills/\{id\}/install & 安装到 OpenClaw & 登录 \\
+POST & /api/skills/\{id\}/offline & 下架（published $\to$ offline） & 管理员 \\
+POST & /api/skills/\{id\}/resubmit & 重新提交（rejected $\to$ pending\_review） & 作者 \\
+POST & /api/skills/\{id\}/republish & 重新上架（offline $\to$ pending\_review） & 管理员 \\
+GET & /api/skills/admin/all & 管理员查看所有 Skill（状态筛选） & 管理员 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{审批接口}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lllX}
+\toprule
+\textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{权限} \\
+\midrule
+GET & /api/reviews & 待审批列表（含三层扫描结果） & 管理员 \\
+POST & /api/reviews/\{id\}/approve & 通过审批 & 管理员 \\
+POST & /api/reviews/\{id\}/reject & 驳回审批（comment） & 管理员 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{数据库设计（已实现）}
 
 \begin{table}[h]
 \centering
@@ -134,26 +150,27 @@ GET & /health & 健康检查 & 公开 \\
 \toprule
 \textbf{表名} & \textbf{用途} & \textbf{关键字段} \\
 \midrule
-users & 用户表 & id, username, email, hashed\_password, role, is\_active, created\_at \\
-apps & 应用表 & id, name, description, version, author\_id, status, category, created\_at \\
-app\_versions & 版本表 & id, app\_id, version, package\_url, changelog, created\_at \\
-reviews & 审批记录表 & id, app\_id, reviewer\_id, decision, comment, created\_at \\
-scans & 扫描结果表 & id, app\_id, scan\_type, result (JSONB), passed, created\_at \\
-audit\_logs & 审计日志表 & id, user\_id, action, resource\_type, resource\_id, detail (JSONB), created\_at \\
-user\_app\_install & 安装关系表 & id, user\_id, app\_id, installed\_at \\
+users & 用户表 & id, username, email, email\_verified, hashed\_password, role, is\_active, created\_at \\
+skills & Skill 表 & id, name, description, version, author\_id, status, category, package\_url, offline\_comment, created\_at \\
+skill\_versions & 版本表 & id, skill\_id, version, package\_url, changelog, created\_at \\
+scan\_results & 扫描结果表 & id, skill\_id, scan\_type, result (JSONB), passed, created\_at \\
+reviews & 审批记录表 & id, skill\_id, reviewer\_id, decision, comment, created\_at \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{状态流转（应用）}
+\subsection{Skill 状态流转}
 
-\texttt{draft} $\to$ \texttt{submitted} $\to$ \texttt{scanning} $\to$ \texttt{pending\_review} $\to$ \texttt{published} / \texttt{rejected} $\to$ \texttt{archived}
+\begin{verbatim}
+scanning --> pending_review --> published（上架）
+                              \-> rejected（驳回）
 
-\subsection{角色枚举}
+published --> offline（管理员下架，需填原因）
+offline --> pending_review（管理员重新上架）
+rejected --> pending_review（开发者重新提交）
+\end{verbatim}
 
-\texttt{admin}（管理员）| \texttt{reviewer}（审批人）| \texttt{developer}（开发者）| \texttt{user}（普通用户）
-
-\section{前端路由设计}
+\section{前端路由（已实现）}
 
 \begin{table}[h]
 \centering
@@ -161,19 +178,17 @@ user\_app\_install & 安装关系表 & id, user\_id, app\_id, installed\_at \\
 \toprule
 \textbf{路径} & \textbf{组件} & \textbf{权限} \\
 \midrule
-/login & Login.vue & 公开 \\
-/register & Register.vue & 公开 \\
-/portal/explore & ExploreView.vue & 登录 \\
-/portal/explore/:id & AppDetailView.vue & 登录 \\
-/portal/submit & SubmitView.vue & 开发者 \\
-/portal/my-apps & MyAppsView.vue & 开发者 \\
-/portal/profile & ProfileView.vue & 登录 \\
-/admin/apps & AppManageView.vue & 管理员 \\
-/admin/apps/:id & AppEditView.vue & 管理员 \\
-/admin/reviews & ReviewView.vue & 审批人/管理员 \\
-/admin/reviews/:id & ReviewDetailView.vue & 审批人/管理员 \\
-/admin/users & UserManageView.vue & 管理员 \\
-/admin/dashboard & DashboardView.vue & 管理员 \\
+/ & 根路由 & 未登录 $\to$ /explore，已登录 $\to$ /dashboard \\
+/login & LoginView & 公开 \\
+/register & RegisterView & 公开 \\
+/verify-email & VerifyEmailView & 公开 \\
+/explore & ExploreView & 公开（搜索+分类+排序） \\
+/explore/:id & SkillDetailView & 公开（含下载/安装） \\
+/submit & SubmitView & 登录 \\
+/my-apps & MyAppsView & 登录（所有状态+重新提交） \\
+/review & ReviewView & 管理员（审批工作台） \\
+/admin/apps & AdminAppsView & 管理员（应用管理+上下架） \\
+/dashboard & DashboardView & 登录（KPI 统计） \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -181,29 +196,20 @@ user\_app\_install & 安装关系表 & id, user\_id, app\_id, installed\_at \\
 \section{部署架构}
 
 \begin{itemize}[nosep]
-  \item Docker Compose 单机编排，开发/测试/生产统一
-  \item PostgreSQL 数据卷持久化
-  \item MinIO 数据卷持久化
-  \item OpenSearch 数据卷持久化
-  \item 后端通过 \texttt{uvicorn} 启动，生产环境加 \texttt{gunicorn}
-  \item 前端生产构建后由后端静态文件服务或 Nginx 托管
+  \item Docker Compose 编排：PostgreSQL + MinIO + OpenSearch + ClamAV
+  \item 后端：uvicorn（开发）/ gunicorn（生产）
+  \item 前端：Vite dev server（开发）/ nginx 托管 build 产物（生产）
+  \item 数据卷持久化：PostgreSQL、MinIO、OpenSearch
+  \item 后端启动时自动补齐数据库新字段（seed.py \_ensure\_schema\_columns）
 \end{itemize}
 
-\section{工具链与约束}
+\section{工具链约束}
 
 \begin{itemize}[nosep]
-  \item \textbf{开发工具链}：OpenClaw（PM AI）+ Cursor（开发 AI），Claude/Codex 暂不参与
-  \item \textbf{拍板机制}：有歧义时必须由魏子政拍板决定方向
+  \item \textbf{开发工具链}：OpenClaw（PM AI）+ Cursor（开发 AI）
+  \item \textbf{拍板机制}：有歧义时必须由魏子政拍板
+  \item \textbf{文档一致性}：TRD 与 MASTER 不一致时，接口/数据库以实际代码为准，重大变更需拍板
 \end{itemize}
-
-\section{文档一致性维护规则}
-
-当 TRD 与 MASTER 总需求文档内容不一致时：
-\begin{enumerate}[nosep]
-  \item 接口定义、数据库设计、路由设计等局部不一致：以 MASTER 为主
-  \item 涉及重大流程或业务流转路径：必须由魏子政拍板决定
-  \item 新增接口或修改接口需同步更新 PRD 功能清单
-\end{enumerate}
 
 \section*{更新记录}
 
@@ -211,7 +217,8 @@ user\_app\_install & 安装关系表 & id, user\_id, app\_id, installed\_at \\
 \toprule
 版本 & 日期 & 变更内容 \\
 \midrule
-v0.2 & 2026-05-06 & 对齐 MASTER v1.0：新增 submit/install 接口；补充工具链约束+文档一致性维护规则 \\
+v1.0 & 2026-05-06 & 全面重写：API 接口更新为实际路径（/api/skills/*），新增认证接口（send-code/verify-email）、生命周期接口（offline/resubmit/republish）、管理员接口（admin/all），数据库表新增 email/email\_verified/offline\_comment，路由更新为实际路由 \\
+v0.2 & 2026-05-06 & 新增 submit/install 接口 \\
 v0.1 & 2026-05-06 & 初始版本 \\
 \bottomrule
 \end{tabular}

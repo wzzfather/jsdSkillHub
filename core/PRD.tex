@@ -30,7 +30,7 @@
 
 \title{\textbf{PRD：产品需求文档}\\[0.5em]\large Product Requirements Document}
 \author{万能产品小助手（PM AI）\\魏子政 审阅}
-\date{2026-05-06 / 版本 v0.2}
+\date{2026-05-06 / 版本 v1.0}
 
 \begin{document}
 
@@ -40,7 +40,7 @@
 \begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
 \toprule
 文档类型 & PRD（Product Requirements Document） \\
-定位 & 产品需求文档 -- 我们要做什么？做给谁用？ \\
+定位 & 产品需求文档 -- 我们要做什么？做给谁用？长什么样？ \\
 核心问题 & 功能清单 + 交互说明 + 验收标准 \\
 前置文档 & MRD（市场需求文档） \\
 \bottomrule
@@ -51,120 +51,88 @@
 
 \section{产品概述}
 
-基于 MRD 分析的市场需求，本产品为企业内部提供 AI Agent 的统一管理平台。四大核心模块：应用市场、审批管理、安全扫描、用户权限。
+基于 MRD 分析，本产品为企业内部提供 AI Skill 的统一管理平台。当前已实现：用户认证（JWT + 邮箱验证）、应用市场（搜索 + 分类 + 排序）、Skill 上传与三层安全扫描、审批工作台、管理员应用管理（上下架）、一键安装到 OpenClaw。
 
-\section{功能清单}
-
-\subsection{P0：核心功能（MVP）}
+\section{已完成功能清单}
 
 \begin{table}[h]
 \centering
-\begin{tabularx}{\linewidth}{clp{5cm}l}
+\begin{tabularx}{\linewidth}{clX}
 \toprule
-\textbf{编号} & \textbf{功能} & \textbf{说明} & \textbf{用户角色} \\
+\textbf{编号} & \textbf{功能} & \textbf{说明} \\
 \midrule
-F-001 & 用户认证 & JWT 登录/注册/Token 刷新 & 所有用户 \\
-F-002 & 应用 CRUD & 创建/查看/编辑/删除 Agent & 开发者/管理员 \\
-F-003 & 应用市场浏览 & 卡片式展示，分页/筛选/排序 & 所有用户 \\
-F-004 & 应用详情 & 版本历史、安装说明、使用指南 & 所有用户 \\
-F-005 & 文件上传 & Agent 包上传至对象存储 & 开发者 \\
-F-006 & 数据库基础 & 核心表结构 + 种子数据 & 系统 \\
+F-001 & 用户注册/登录 & 用户名 + 密码 + 邮箱验证码认证，JWT Token \\
+F-002 & 应用市场浏览 & 卡片式展示，搜索 + 分类下拉 + 排序（最新/名称），分页 \\
+F-003 & Skill 详情页 & 名称、版本、分类、描述、三层扫描摘要、安装/下载按钮 \\
+F-004 & Skill 上传 & zip 包上传，自动触发三层安全扫描（Semgrep + ClamAV + LLM） \\
+F-005 & 三层安全扫描 & Semgrep 静态分析 + ClamAV 病毒扫描 + qwen-turbo 语义分析 \\
+F-006 & 审批工作台 & 管理员查看 pending\_review 列表，查看三层扫描结果，通过/驳回 \\
+F-007 & 我的应用 & 开发者查看所有自己提交的 Skill（任何状态），重新提交被驳回的 Skill \\
+F-008 & 管理员应用管理 & 查看所有 Skill，按状态筛选，下架（填原因）/ 重新上架 \\
+F-009 & 下载 Skill 包 & MinIO 预签名 URL，1 小时有效期 \\
+F-010 & 安装到 OpenClaw & 下载 zip 并解压到 $\sim$/.openclaw/skills/，支持中文目录名 \\
+F-011 & 应用生命周期 & scanning $\to$ pending\_review $\to$ published $\to$ offline $\to$ pending\_review；rejected $\to$ pending\_review \\
+F-012 & 种子数据 & 4 个示例 Skill（周报助手/SQL 审计/工单摘要/内部文档检索） \\
+F-013 & 看板 & KPI 统计卡片（总数/各状态计数） \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{P1：重要功能}
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\linewidth}{clp{5cm}l}
-\toprule
-\textbf{编号} & \textbf{功能} & \textbf{说明} & \textbf{用户角色} \\
-\midrule
-F-007 & 审批工作台 & 提交-待审批-通过/驳回-上架/退回 & 审批人 \\
-F-008 & 全文+语义搜索 & OpenSearch 混合搜索，结果高亮 & 所有用户 \\
-F-009 & 三层安全扫描 & Semgrep+ClamAV+LLM 语义分析 & 系统 \\
-F-010 & RBAC 权限 & 管理员/审批人/开发者/普通用户 & 管理员 \\
-F-011 & 用户管理 & 用户列表、角色分配 & 管理员 \\
-F-012 & 搜索索引同步 & 应用数据变更自动同步 OpenSearch & 系统 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\subsection{P2：增强功能}
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\linewidth}{clp{5cm}l}
-\toprule
-\textbf{编号} & \textbf{功能} & \textbf{说明} & \textbf{用户角色} \\
-\midrule
-F-013 & 评分与评论 & 星级评分 + 文字评论 & 所有用户 \\
-F-014 & 开发者主页 & 开发者信息 + 已发布应用 & 所有用户 \\
-F-015 & 暗色模式 & 亮色/暗色主题切换 & 所有用户 \\
-F-016 & 审计日志 & 记录所有关键操作 & 管理员 \\
-F-017 & 搜索建议 & 输入时自动补全 & 所有用户 \\
-F-018 & 健康检查增强 & /health 返回各组件状态 & 系统 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{交互说明}
-
-\subsection{页面结构}
+\section{页面结构（已实现）}
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\linewidth}{llX}
 \toprule
-\textbf{区域} & \textbf{页面} & \textbf{交互要点} \\
+\textbf{路径} & \textbf{页面} & \textbf{说明} \\
 \midrule
-管理后台 & 应用管理 & 表格展示所有应用，支持搜索/筛选，操作列（查看/编辑/删除） \\
-管理后台 & 审批管理 & 待审批列表，点击进入详情，通过/驳回按钮+备注 \\
-管理后台 & 用户管理 & 用户表格，角色下拉选择，保存即生效 \\
-管理后台 & 数据概览 & 卡片统计（应用数/用户数/审批率/安装量） \\
-开发者门户 & 应用市场 & 搜索栏 + 分类标签 + 卡片网格，点击进入详情 \\
-开发者门户 & 提交应用 & 分步表单（基本信息-上传包-权限声明-提交） \\
-开发者门户 & 我的应用 & 列表展示已提交应用，状态标签（审核中/已上架/已驳回） \\
-开发者门户 & 开发者主页 & 个人信息 + 已发布应用列表 + 评分统计 \\
-认证 & 登录 & 用户名+密码，登录后跳转首页 \\
-认证 & 注册 & 用户名+密码+确认密码，注册后自动登录 \\
+/ & 首页 & 未登录跳转 /explore，已登录跳转 /dashboard \\
+/login & 登录 & 用户名 + 密码 \\
+/register & 注册 & 用户名 + 密码 + 邮箱 \\
+/verify-email & 邮箱验证 & 6 位验证码输入 \\
+/explore & 应用市场 & 搜索 + 分类 + 排序 + 卡片网格 \\
+/explore/:id & Skill 详情 & 信息 + 扫描摘要 + 下载/安装按钮 \\
+/submit & 提交应用 & 上传 zip 包 + 名称/描述/版本 \\
+/my-apps & 我的应用 & 表格展示所有状态，rejected 可重新提交 \\
+/review & 审批工作台 & 管理员专属，pending\_review 列表 + 扫描结果 + 审批操作 \\
+/admin/apps & 应用管理 & 管理员专属，全状态 Skill 表格 + 下架/重新上架 \\
+/dashboard & 看板 & KPI 统计卡片 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{关键交互流程}
+\section{关键交互流程}
 
-\textbf{应用提交流程}：开发者填写信息 $\to$ 上传 Agent 包 $\to$ 系统触发安全扫描 $\to$ 扫描通过 $\to$ 进入待审批队列 $\to$ 审批人审核 $\to$ 通过则上架，驳回则退回。
+\subsection{Skill 上架流程}
 
-\textbf{应用安装流程}：用户浏览市场 $\to$ 查看详情 $\to$ 点击安装 $\to$ 系统记录安装关系 $\to$ 安装成功提示。
+上传 zip $\to$ scanning（三层扫描）$\to$ pending\_review（审批工作台）$\to$ published（上架）/ rejected（驳回）
+
+\subsection{Skill 下架流程}
+
+管理员下架（填原因）$\to$ offline（我的应用显示已下架）$\to$ 管理员重新上架 $\to$ pending\_review（重新审批）
+
+\subsection{开发者重新提交}
+
+rejected 状态 $\to$ 开发者点击「重新提交」$\to$ pending\_review（重新进入审批队列）
+
+\subsection{用户安装流程}
+
+浏览市场 $\to$ 查看详情 $\to$ 下载 zip / 安装到 OpenClaw
+
+\section{设计规范}
+
+\begin{itemize}[nosep]
+  \item \textbf{颜色方案}：黑白灰极简风格，主色 \texttt{\#1a1a2e}
+  \item \textbf{状态标签颜色}：scanning=warning，pending\_review=info，published=success，offline=danger，rejected=danger
+  \item \textbf{UI 框架}：Element Plus
+\end{itemize}
 
 \section{约束与规则}
 
-\subsection{工具链锁定}
-
-仅使用 OpenClaw（PM AI）+ Cursor（开发 AI），Claude/Codex 暂不参与。
-
-\subsection{拍板机制}
-
-有歧义的环节，OpenClaw 必须先让魏子政拍板决定方向，再组织下一步的开发/验收/commit。禁止 OpenClaw 在未拍板的情况下自行假设。
-
-\subsection{文档一致性维护规则}
-
-当 PRD 与 MASTER 总需求文档内容不一致时：
-\begin{enumerate}[nosep]
-  \item 接口文本、功能描述、技术细节等局部不一致：以 MASTER 为主
-  \item 涉及重大流程或业务流转路径：必须由魏子政拍板决定
-\end{enumerate}
-
-\section{验收标准}
-
-\begin{itemize}
-  \item[$\square$] 所有 P0 功能开发完成并通过测试
-  \item[$\square$] 四种角色（管理员/审批人/开发者/普通用户）权限隔离正确
-  \item[$\square$] 应用从提交到上架全流程可走通
-  \item[$\square$] 搜索功能返回正确结果
-  \item[$\square$] 前端页面在主流浏览器上显示正常
+\begin{itemize}[nosep]
+  \item \textbf{工具链锁定}：仅 OpenClaw + Cursor，Claude/Codex 暂不参与
+  \item \textbf{拍板机制}：有歧义时必须由魏子政拍板，禁止自行假设
+  \item \textbf{文档一致性}：PRD 与 MASTER 不一致时，局部细节以 MASTER 为主，重大流程需拍板
 \end{itemize}
 
 \section*{更新记录}
@@ -173,7 +141,8 @@ F-018 & 健康检查增强 & /health 返回各组件状态 & 系统 \\
 \toprule
 版本 & 日期 & 变更内容 \\
 \midrule
-v0.2 & 2026-05-06 & 对齐 MASTER v1.0：新增约束与规则章节（工具链锁定+拍板机制+文档一致性维护规则） \\
+v1.0 & 2026-05-06 & 全面重写：对齐 MASTER v1.3，功能清单更新为 F-001~F-013（全部已完成），新增邮箱认证/上下架/应用管理/生命周期流转/筛选排序，页面结构更新为实际路由 \\
+v0.2 & 2026-05-06 & 对齐 MASTER v1.0 \\
 v0.1 & 2026-05-06 & 初始版本 \\
 \bottomrule
 \end{tabular}

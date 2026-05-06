@@ -30,7 +30,7 @@
 
 \title{\textbf{RFC：请求意见/技术提案}\\[0.5em]\large Request for Comments}
 \author{万能产品小助手（PM AI）\\魏子政 审阅}
-\date{2026-05-06 / 版本 v0.2}
+\date{2026-05-06 / 版本 v1.0}
 
 \begin{document}
 
@@ -40,8 +40,8 @@
 \begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
 \toprule
 文档类型 & RFC（Request for Comments） \\
-定位 & 请求意见/技术提案 -- 发出来让大家看看，有没有坑 \\
-核心问题 & 技术方案行不行得通？有没有更好的选择？ \\
+定位 & 请求意见/技术提案 -- 技术方案发出来让大家看看，有没有坑 \\
+核心问题 & 行不行得通？有没有更好的选择？ \\
 前置文档 & MRD（市场需求文档） \\
 后续文档 & TRD（技术需求文档） \\
 \bottomrule
@@ -50,61 +50,74 @@
 
 \vspace{1em}
 
-\section{背景}
-
-MRD 确定了市场方向，PRD 确定了功能范围。本 RFC 提出技术选型和架构方案，征集意见后形成 TRD。
-
-\section{技术栈提案}
+\section{技术栈（已锁定）}
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\linewidth}{lXl}
 \toprule
-\textbf{层} & \textbf{技术选型} & \textbf{理由} \\
+\textbf{层} & \textbf{技术选型} & \textbf{选择理由} \\
 \midrule
-前端框架 & Vue 3 + Element Plus & 国内部署友好，Element Plus 组件丰富，Vue 学习曲线低 \\
-构建工具 & Vite & 开发体验好，HMR 快，生态成熟 \\
+前端框架 & Vue 3 + Element Plus & 国内部署友好，组件丰富，黑白灰极简风格实现成本低 \\
+构建工具 & Vite & HMR 快，开发体验好，生态成熟 \\
 状态管理 & Pinia & Vue 3 官方推荐，TypeScript 友好 \\
-后端框架 & FastAPI & Python 生态，async 原生支持，Swagger 自动生成 \\
+后端框架 & FastAPI & Python 生态，async 原生，Swagger 自动生成 \\
 ORM & SQLAlchemy 2.0 (async) & 功能全面，async 支持，Alembic 迁移集成 \\
-数据库 & PostgreSQL 16 & JSONB 灵活，关系查询强，生态成熟 \\
-搜索引擎 & OpenSearch 2.x & 全文+语义搜索，中文分词支持（IK） \\
+数据库 & PostgreSQL 16 & JSONB 灵活，关系查询强，企业级成熟度 \\
+搜索引擎 & OpenSearch 2.x & 全文+语义搜索，中文分词（IK） \\
 对象存储 & MinIO & S3 兼容，私有部署，轻量 \\
-认证 & JWT (python-jose + passlib) & 无状态，适合微服务，无需额外组件 \\
-容器编排 & Docker Compose & 开发/部署统一，轻量够用 \\
+认证 & JWT (python-jose + passlib) & 无状态，适合 API 服务，无需额外组件 \\
+邮箱验证 & 内存验证码（MVP） & MVP 阶段简化方案，预留 SMTP 接入点 \\
+病毒扫描 & ClamAV（Docker） & 开源，clamav/clamav:latest 官方镜像 \\
+静态分析 & Semgrep & 开源，规则丰富，CI/CD 友好 \\
+LLM 分析 & qwen-turbo（DashScope） & 国内部署友好，API 调用简单 \\
+容器编排 & Docker Compose & 开发/测试/部署统一，轻量够用 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{架构方案}
+\section{架构方案（已实现）}
 
 \subsection{前端架构}
 
-SPA 单页应用，分为管理后台（admin）和开发者门户（portal）两个区域。路由守卫做权限控制。API 调用统一封装 axios 实例，Pinia 管理共享状态。
+SPA 单页应用。Vue Router 路由守卫做权限控制（requiresAuth / requiresAdmin）。API 调用统一封装 axios 实例（api/client.ts），Pinia 管理认证状态（stores/auth.ts）。
 
 \subsection{后端架构}
 
-六层分层：routers（路由层）$\to$ services（业务层）$\to$ models（数据层）$\to$ schemas（模型层）$\to$ tasks（任务层）$\to$ utils（工具层）。全部 async/await。
+六层分层架构：
+\begin{itemize}[nosep]
+  \item \texttt{routers/} — API 路由层（auth / skills / reviews）
+  \item \texttt{services/} — 业务逻辑层（scan\_service / skill\_package\_service）
+  \item \texttt{models/} — ORM 模型层（User / Skill / ScanResult / Review）
+  \item \texttt{schemas/} — Pydantic 数据模型层（请求/响应格式定义）
+  \item \texttt{tasks/} — 后台任务层（扫描任务）
+  \item \texttt{utils/} — 工具层（minio\_client / password）
+\end{itemize}
 
-\subsection{安全扫描架构}
+全部 async/await，BackgroundTasks 驱动扫描。
 
-三层扫描管道：上传 $\to$ Semgrep（静态代码）$\to$ ClamAV（恶意文件）$\to$ LLM 语义分析（权限合理性判断）$\to$ 汇总报告驱动审批。
+\subsection{安全扫描管道}
 
-\section{讨论点}
+上传 zip $\to$ Semgrep（静态代码分析）$\to$ ClamAV（病毒扫描）$\to$ qwen-turbo（LLM 语义分析）$\to$ 三层结果汇总 $\to$ 驱动审批。
+
+\section{讨论点与决策}
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\linewidth}{lp{2cm}X}
 \toprule
-\textbf{编号} & \textbf{状态} & \textbf{讨论内容} \\
+\textbf{编号} & \textbf{状态} & \textbf{讨论内容与决策} \\
 \midrule
-R-001 & \textcolor{success}{已决定} & 前端选 Vue 3 而非 React/Next.js（部署友好 + 团队熟悉） \\
-R-002 & \textcolor{success}{已决定} & 后端选 FastAPI 而非 Spring（轻量 + 开发效率） \\
-R-003 & \textcolor{success}{已决定} & 认证选 JWT 而非 Keycloak（减少组件依赖） \\
-R-004 & \textcolor{success}{已决定} & 编排选 Docker Compose 而非 K8s（开发阶段够用） \\
-R-005 & \textcolor{warning}{待拍板} & LLM 语义分析用哪个模型？内网部署还是 API 调用？（需魏子政拍板） \\
-R-006 & \textcolor{warning}{待拍板} & OpenSearch 中文分词方案？IK 分词器还是其他？（需魏子政拍板） \\
-R-007 & \textcolor{success}{已决定} & 暂不需要消息队列，用 asyncio 后台任务替代（MASTER D-001 已锁定） \\
+R-001 & \textcolor{success}{已决定} & 前端选 Vue 3 + Element Plus（部署友好 + 黑白灰风格实现简单） \\
+R-002 & \textcolor{success}{已决定} & 后端选 FastAPI（轻量 + Python 生态 + async 原生） \\
+R-003 & \textcolor{success}{已决定} & 认证选 JWT（无状态，减少组件依赖） \\
+R-004 & \textcolor{success}{已决定} & 编排选 Docker Compose（开发阶段够用） \\
+R-005 & \textcolor{success}{已决定} & LLM 用 qwen-turbo + DashScope API（国内友好，成本低） \\
+R-006 & \textcolor{success}{已决定} & 邮箱验证 MVP 用内存验证码，预留 SMTP 接入 \\
+R-007 & \textcolor{success}{已决定} & 暂不需要消息队列，asyncio BackgroundTasks 够用 \\
+R-008 & \textcolor{success}{已决定} & Skill 安装到 $\sim$/.openclaw/skills/，支持中文目录名 \\
+R-009 & \textcolor{success}{已决定} & Skill 状态流转：scanning/pending\_review/published/offline/rejected \\
+R-010 & \textcolor{success}{已决定} & 全部用户默认 admin 角色（MVP 简化） \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -112,20 +125,11 @@ R-007 & \textcolor{success}{已决定} & 暂不需要消息队列，用 asyncio 
 \section{风险点}
 
 \begin{itemize}[nosep]
-  \item \textbf{OpenSearch 资源占用}：单节点模式下内存占用较高（建议 512MB-1GB）
-  \item \textbf{LLM 扫描延迟}：语义分析依赖外部模型，可能成为审批流程瓶颈
-  \item \textbf{MinIO 兼容性}：部分 S3 高级特性 MinIO 可能不完全支持
-  \item \textbf{Vue 3 生态}：相比 React，部分 UI 组件库选择较少
+  \item \textbf{LLM 扫描延迟}：qwen-turbo API 调用可能成为审批流程瓶颈（当前可接受）
+  \item \textbf{OpenSearch 资源}：单节点内存占用 512MB-1GB（当前未启用全文搜索）
+  \item \textbf{邮箱验证 MVP}：内存存储验证码，服务重启后丢失（后续接 SMTP）
+  \item \textbf{ClamAV Docker}：首次扫描需更新病毒库，可能较慢
 \end{itemize}
-
-\section{文档一致性维护规则}
-
-当 RFC 与 MASTER 总需求文档内容不一致时：
-\begin{enumerate}[nosep]
-  \item 接口文本、技术细节等局部不一致：以 MASTER 为主
-  \item 涉及重大流程或业务流转路径：必须由魏子政拍板决定
-  \item 讨论点状态变更（如待讨论$\to$已决定）：需 MASTER 或魏子政拍板确认后更新
-\end{enumerate}
 
 \section*{更新记录}
 
@@ -133,7 +137,8 @@ R-007 & \textcolor{success}{已决定} & 暂不需要消息队列，用 asyncio 
 \toprule
 版本 & 日期 & 变更内容 \\
 \midrule
-v0.2 & 2026-05-06 & 对齐 MASTER v1.0：R-005/R-006 改为待拍板，R-007 改为已决定；新增文档一致性维护规则 \\
+v1.0 & 2026-05-06 & 全面重写：R-005/R-006 已决定（qwen-turbo + 内存验证码），新增 R-008~R-010（安装路径/状态流转/全管理员），补充实际架构描述 \\
+v0.2 & 2026-05-06 & R-005/R-006 改为待拍板 \\
 v0.1 & 2026-05-06 & 初始版本 \\
 \bottomrule
 \end{tabular}
