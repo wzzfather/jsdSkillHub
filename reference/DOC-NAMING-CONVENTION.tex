@@ -295,6 +295,178 @@ v0.2 & 2026-05-07 & 新增第三节 & PM AI \\
 \end{lstlisting}
 
 % ============================================================
+\section{目录管理方式}
+% ============================================================
+
+本文档由 PM AI（万能产品小助手）负责维护。以下是对 \texttt{demands/} 和 \texttt{reference/} 两个目录的管理规则，确保后续迭代有据可依。
+
+\subsection{reference/ --- 外部调研文档管理}
+
+\subsubsection{目录定位}
+
+\texttt{reference/} 仅存放\textbf{外部调研}产生的文档。判断标准：
+
+\begin{itemize}[nosep]
+  \item \textbf{放入 reference/}：外部项目架构分析、竞品调研、开源方案研究、行业标准参考
+  \item \textbf{不放入 reference/}：项目自身的规范、指南、总纲、需求文档（这些放 \texttt{demands/} 或 \texttt{core/}）
+  \item \textbf{不放入 reference/}：技术选型文档、团队协作文档（这些放项目根目录 \texttt{.md}）
+\end{itemize}
+
+\subsubsection{编号规则}
+
+\begin{itemize}[nosep]
+  \item 前缀固定为 \texttt{REF}
+  \item 编号三位递增：\texttt{REF-001}、\texttt{REF-002}、\texttt{REF-003}、...
+  \item 编号\textbf{全局唯一}，不重复使用
+  \item 文件名格式：\texttt{REF-\{NNN\}-\{kebab-case\}.tex/pdf}
+\end{itemize}
+
+\subsubsection{创建流程}
+
+\begin{enumerate}[nosep]
+  \item PM AI 收到外部调研任务（魏子政指派或主动调研）
+  \item 确定下一个可用编号（查看本文件索引表中最后一个 REF 编号 +1）
+  \item 创建 \texttt{REF-\{NNN\}-\{kebab-case\}.tex}，使用统一 tex 模板
+  \item 编写调研内容
+  \item 编译为 pdf：\texttt{cd reference \&\& \textasciitilde/.local/tectonic/tectonic REF-\{NNN\}-\{kebab-case\}.tex}
+  \item 更新本文件的索引表（添加新行）
+  \item 重新编译本文件为 pdf
+  \item Git commit
+\end{enumerate}
+
+\subsubsection{更新规则}
+
+\begin{itemize}[nosep]
+  \item REF 文档\textbf{创建后一般不修改}（外部调研结果是快照）
+  \item 如需补充信息：更新 tex 源文件 → 递增版本号 → 追加更新记录 → 重新编译
+  \item 如有新调研对象：创建新的 REF-xxx（不修改已有 REF）
+\end{itemize}
+
+\subsubsection{与 DEMAND 的关系}
+
+REF 文档是\textbf{输入}，DEMAND 文档是\textbf{输出}。典型链路：
+\begin{verbatim}
+外部调研 → REF-xxx（记录调研结果）
+         → DEMAND-xxx（基于调研结论提出项目需求）
+         → MASTER（更新需求总表）
+\end{verbatim}
+
+\subsection{demands/ --- 需求与规范文档管理}
+
+\subsubsection{目录定位}
+
+\texttt{demands/} 存放三类文档：
+
+\begin{enumerate}[nosep]
+  \item \textbf{MASTER}：项目总需求文档（唯一，持续更新）
+  \item \textbf{DEMAND-xxx}：增量需求文档（每个需求独立编号，归档后不修改）
+  \item \textbf{GUIDE-xxx}：项目规范文档（编码规范、流程指南等）
+\end{enumerate}
+
+\subsubsection{编号规则}
+
+\begin{itemize}[nosep]
+  \item MASTER 无编号（唯一文件）
+  \item DEMAND 和 GUIDE 各自独立编号，三位递增
+  \item 编号全局唯一，不重复使用
+  \item 文件名格式：\texttt{\{PREFIX\}-\{NNN\}-\{kebab-case\}.tex/pdf}
+\end{itemize}
+
+\subsubsection{MASTER 的管理方式}
+
+MASTER 是项目的\textbf{唯一需求权威来源}：
+
+\begin{itemize}[nosep]
+  \item 每次新增需求后\textbf{必须}更新 MASTER（添加新行到需求总表）
+  \item 每次需求状态变更后\textbf{必须}更新 MASTER（修改状态字段）
+  \item 版本号随每次更新递增（v1.0 → v1.1 → v1.2 → ...）
+  \item MASTER 中的需求编号（D-001, D-002, ...）与 DEMAND 文件编号对应但不完全相同（一个 D-xxx 可能拆为多个 DEMAND-xxx，也可能合并）
+  \item 更新后必须重新编译 pdf
+\end{itemize}
+
+\subsubsection{DEMAND-xxx 的管理方式}
+
+DEMAND 是需求的\textbf{冻结快照}：
+
+\begin{itemize}[nosep]
+  \item 创建时：确定编号 → 编写完整需求 → 编译 pdf → 更新 MASTER → Git commit
+  \item 归档后：\textbf{不再修改}原文档
+  \item 需求变更：创建新的 DEMAND-xxx（引用旧编号，说明变更内容），不修改旧文档
+  \item 每份 DEMAND 包含：需求描述、拍板决策、技术方案、验收标准、状态
+\end{itemize}
+
+\subsubsection{GUIDE-xxx 的管理方式}
+
+GUIDE 是项目的\textbf{持续维护规范}：
+
+\begin{itemize}[nosep]
+  \item GUIDE 与 DEMAND 不同，GUIDE 可以持续更新（规范会随项目演进）
+  \item 更新时递增版本号，追加更新记录
+  \item GUIDE-002（项目方法论总纲）是核心文档，任何方法论变更都必须同步更新
+\end{itemize}
+
+\subsubsection{创建流程（DEMAND 和 GUIDE 通用）}
+
+\begin{enumerate}[nosep]
+  \item PM AI 识别需求/规范创建场景
+  \item 确定类型（DEMAND 或 GUIDE）和下一个可用编号
+  \item 创建 tex 文件，使用统一模板
+  \item 编写内容（DEMAND 需包含验收标准，GUIDE 需包含操作指引）
+  \item 编译为 pdf：\texttt{cd demands \&\& \textasciitilde/.local/tectonic/tectonic \{文件名\}.tex}
+  \item 更新 MASTER（DEMAND 必须更新，GUIDE 视情况）
+  \item 更新本文件的索引表
+  \item 重新编译本文件为 pdf
+  \item Git commit
+\end{enumerate}
+
+\subsection{版本迭代与阶段划分}
+
+\subsubsection{V0 先备阶段}
+
+V0 阶段的目标是建立项目基础设施：
+
+\begin{itemize}[nosep]
+  \item 智能体分工定义（OpenClaw + Cursor）
+  \item 技术选型与锁定
+  \item 文档体系建立
+  \item 开发环境搭建
+  \item MVP 核心流程跑通
+\end{itemize}
+
+V0 阶段对应的文档：DEMAND-000（V0 总纲）、DEMAND-001 至 DEMAND-004（分工/环境/流程/协作）、GUIDE-001（结构）、GUIDE-002（方法论）。
+
+\subsubsection{V1 正式需求阶段}
+
+V1 起进入正式需求迭代：
+
+\begin{itemize}[nosep]
+  \item DEMAND-005 起（MVP 功能）开始编号
+  \item 每个正式需求走完整流程：记录 → 评估 → 设计 → 拆解 → 开发 → 验收 → 文档更新
+  \item MASTER 持续更新，记录所有需求的最新状态
+  \item REF 文档按需新增（新调研对象）
+\end{itemize}
+
+\subsubsection{跨阶段文档处理}
+
+\begin{itemize}[nosep]
+  \item V0 文档归档保留，不删除（历史追溯需要）
+  \item V0 的方法论文档（GUIDE-002）持续维护，不随阶段归档
+  \item MASTER 跨阶段持续更新，V1 的需求追加到 V0 需求之后
+  \item core/ 文档（MRD/PRD/RFC/TRD）跨阶段持续更新
+\end{itemize}
+
+\subsection{索引维护规则}
+
+本文件（DOC-NAMING-CONVENTION.tex）是\textbf{文档索引的唯一权威来源}：
+
+\begin{itemize}[nosep]
+  \item 每次新增/归档/重命名文档后，必须更新对应索引表
+  \item 索引表中的状态字段必须与实际一致
+  \item 更新后重新编译 pdf
+\end{itemize}
+
+
+% ============================================================
 \section{当前文档索引}
 % ============================================================
 
