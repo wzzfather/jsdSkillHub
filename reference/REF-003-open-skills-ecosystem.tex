@@ -1,0 +1,339 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 外部调研}
+\fancyhead[R]{\small\color{graytext} REF-003}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{REF-003：Open Skills 生态系统（skills.sh）架构调研}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v1.0}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+调研日期 & 2026-05-06 \\
+调研目标 & 了解 skills.sh 开放技能生态的架构设计，为本项目提供参考 \\
+数据来源 & npm skills v1.5.5 README + skills.sh 官网 + CLI 实际操作 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{概述}
+
+\textbf{skills.sh} 是由 Vercel Labs 发起的开放 Agent Skills 生态系统。其核心组件包括：
+
+\begin{enumerate}[nosep]
+  \item \textbf{Skills CLI}（\texttt{npx skills}）--- 技能包管理命令行工具，MIT 许可
+  \item \textbf{skills.sh} --- 技能浏览与搜索网站（类似 npm registry for agent skills）
+  \item \textbf{agentskills.io} --- Agent Skills 开放规范
+\end{enumerate}
+
+npm 包名 \texttt{skills}，当前版本 v1.5.5，唯一依赖 \texttt{yaml}。维护者：rauchg（Vercel CEO）和 quuu。
+
+该生态支持 \textbf{56+ 种 AI 编码 Agent}，包括 OpenClaw、Cursor、Claude Code、Codex、GitHub Copilot、Cline、Augment 等。
+
+\section{Skill 格式规范}
+
+\subsection{SKILL.md 结构}
+
+每个 Skill 是一个目录，核心文件为 \texttt{SKILL.md}，格式为 YAML frontmatter + Markdown：
+
+\begin{verbatim}
+---
+name: my-skill
+description: What this skill does and when to use it
+metadata:
+  internal: true       # 可选，标记为内部技能
+---
+
+# My Skill
+
+Instructions for the agent...
+
+## When to Use
+...
+
+## Steps
+1. First, do this
+2. Then, do that
+\end{verbatim}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{字段} & \textbf{必填} & \textbf{说明} \\
+\midrule
+\texttt{name} & 是 & 唯一标识，小写+连字符 \\
+\texttt{description} & 是 & 功能描述，用于搜索发现 \\
+\texttt{metadata.internal} & 否 & 设为 true 则默认隐藏，仅内部可见 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Skill 发现位置}
+
+CLI 在仓库中按以下顺序搜索 Skill：
+
+\begin{enumerate}[nosep]
+  \item 仓库根目录（如含 \texttt{SKILL.md}）
+  \item \texttt{skills/}
+  \item \texttt{skills/.curated/}（精选）
+  \item \texttt{skills/.experimental/}（实验性）
+  \item \texttt{skills/.system/}（系统级）
+  \item 各 Agent 专属目录（如 \texttt{.claude/skills/}、\texttt{.cursor/skills/}）
+\end{enumerate}
+
+\subsection{插件 Manifest 兼容}
+
+支持 Claude Code 插件市场的 manifest 格式：
+
+\begin{verbatim}
+// .claude-plugin/marketplace.json
+{
+  "metadata": { "pluginRoot": "./plugins" },
+  "plugins": [{
+    "name": "my-plugin",
+    "source": "my-plugin",
+    "skills": ["./skills/review", "./skills/test"]
+  }]
+}
+\end{verbatim}
+
+\section{安装机制}
+
+\subsection{安装来源}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{来源格式} & \textbf{示例} \\
+\midrule
+GitHub 简写 & \texttt{npx skills add vercel-labs/agent-skills} \\
+GitHub 完整 URL & \texttt{npx skills add https://github.com/org/repo} \\
+GitLab URL & \texttt{npx skills add https://gitlab.com/org/repo} \\
+任意 Git URL & \texttt{npx skills add git@github.com:org/repo.git} \\
+本地路径 & \texttt{npx skills add ./my-local-skills} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{安装范围}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{范围} & \textbf{标志} & \textbf{说明} \\
+\midrule
+Project & 默认 & 安装到 \texttt{./<agent>/skills/}，随项目 Git 提交 \\
+Global & \texttt{-g} & 安装到 \texttt{\textasciitilde/<agent>/skills/}，跨项目共享 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{安装方式}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{方式} & \textbf{说明} \\
+\midrule
+Symlink（推荐） & 为每个 Agent 创建符号链接，指向同一份文件。单一真相源，更新方便 \\
+Copy & 创建独立副本。适用于不支持符号链接的环境 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{CLI 命令清单}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{命令} & \textbf{功能} \\
+\midrule
+\texttt{npx skills find [query]} & 按关键词搜索技能 \\
+\texttt{npx skills add <source>} & 安装技能（支持多种来源格式） \\
+\texttt{npx skills list} & 列出已安装技能 \\
+\texttt{npx skills update [skills]} & 更新已安装技能 \\
+\texttt{npx skills remove [skills]} & 卸载技能 \\
+\texttt{npx skills init [name]} & 创建新 Skill 模板 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+关键选项：
+\begin{itemize}[nosep]
+  \item \texttt{-a, --agent <agents...>}：指定目标 Agent
+  \item \texttt{-s, --skill <skills...>}：安装指定 Skill（\texttt{'*'} 表示全部）
+  \item \texttt{-y, --yes}：跳过确认提示
+  \item \texttt{--copy}：使用复制而非符号链接
+  \item \texttt{--all}：安装到所有 Agent
+\end{itemize}
+
+\section{多 Agent 兼容架构}
+
+\subsection{Agent 路径映射}
+
+每个 Agent 有固定的 Project Path 和 Global Path。CLI 自动检测已安装的 Agent，如未检测到则提示选择。
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lll}
+\toprule
+\textbf{Agent} & \textbf{Project Path} & \textbf{Global Path} \\
+\midrule
+OpenClaw & \texttt{skills/} & \texttt{\textasciitilde/.openclaw/skills/} \\
+Cursor & \texttt{.agents/skills/} & \texttt{\textasciitilde/.cursor/skills/} \\
+Claude Code & \texttt{.claude/skills/} & \texttt{\textasciitilde/.claude/skills/} \\
+Codex & \texttt{.agents/skills/} & \texttt{\textasciitilde/.codex/skills/} \\
+GitHub Copilot & \texttt{.agents/skills/} & \texttt{\textasciitilde/.copilot/skills/} \\
+Cline & \texttt{.agents/skills/} & \texttt{\textasciitilde/.agents/skills/} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{注意}：OpenClaw 的路径与其他 Agent 不同。Project 路径是 \texttt{skills/}（无点号前缀），Global 路径是 \texttt{\textasciitilde/.openclaw/skills/}。
+
+\subsection{跨 Agent 兼容性}
+
+Skills 遵循 [agentskills.io](https://agentskills.io) 开放规范，大部分功能跨 Agent 兼容。差异点：
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{特性} & \textbf{兼容性} \\
+\midrule
+基础 Skills & 所有 56+ Agent 均支持 \\
+\texttt{allowed-tools} & 除 Qoder、Zencoder 外均支持 \\
+\texttt{context: fork} & 仅 Claude Code 支持 \\
+Hooks & Claude Code、Cline、Kiro CLI、GitHub Copilot 支持 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{搜索与分发}
+
+\subsection{skills.sh 网站}
+
+\textbf{skills.sh} 是技能浏览与搜索网站，功能类似 npm registry：
+
+\begin{itemize}[nosep]
+  \item 搜索框：按关键词搜索 Skill
+  \item Skill 详情页：名称、描述、安装量、来源仓库
+  \item 安装量统计：如 \texttt{vercel-react-best-practices} 有 9.2K 安装
+  \item 分类浏览：Web Development / Testing / DevOps / Documentation / Code Quality / Design / Productivity
+\end{itemize}
+
+\subsection{CLI 搜索}
+
+\texttt{npx skills find [query]} 基于 skills.sh 索引进行关键词搜索，返回匹配的 Skill 列表及安装命令。
+
+\subsection{热门 Skill 仓库}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+\textbf{仓库} & \textbf{说明} \\
+\midrule
+\texttt{vercel-labs/agent-skills} & Vercel 官方维护，涵盖前端最佳实践 \\
+\texttt{ComposioHQ/awesome-claude-skills} & Claude Code 技能聚合 \\
+\texttt{aiskillstore/marketplace} & 技能市场（skill-creator、xlsx、frontend-design） \\
+\texttt{starchild-ai-agent/official-skills} & Starchild AI 官方技能 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{与我们项目的对比分析}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\linewidth}{llX}
+\toprule
+\textbf{维度} & \textbf{skills.sh 生态} & \textbf{我们的企业应用商店} \\
+\midrule
+定位 & 开源社区，开发者个人使用 & 企业内部，团队协作 \\
+Skill 格式 & SKILL.md (YAML+Markdown) & zip 包（含 manifest/代码） \\
+分发方式 & GitHub 仓库 $\to$ CLI 安装 & 上传 $\to$ 扫描 $\to$ 审批 $\to$ 上架 \\
+安全机制 & 无安全扫描 & 三层扫描（Semgrep+ClamAV+LLM） \\
+审批机制 & 无审批 & 管理员审批工作台 \\
+搜索 & skills.sh 网站搜索 & OpenSearch 全文+向量 \\
+权限控制 & 无 & RBAC 四角色 \\
+存储 & GitHub 仓库 & MinIO 对象存储 \\
+版本管理 & Git tag/branch & 数据库版本记录 \\
+用户系统 & 无（依赖 GitHub） & JWT 认证 \\
+安装体验 & \texttt{npx skills add} 一行命令 & Web 界面上架+下载 \\
+Agent 兼容 & 56+ Agent 通用 & 内部 Agent 专用 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{可借鉴的设计}
+
+\begin{enumerate}[nosep]
+  \item \textbf{SKILL.md 格式}：YAML frontmatter + Markdown 简洁规范，可作为我们 manifest 文件的参考格式
+  \item \textbf{Symlink 安装策略}：多 Agent 共享同一份 Skill 文件，单一真相源，值得借鉴
+  \item \textbf{skills.sh 体验}：浏览/搜索/安装量统计的 Web 体验可作为前端参考
+  \item \textbf{插件 Manifest 兼容}：\texttt{.claude-plugin/marketplace.json} 格式可考虑兼容
+  \item \textbf{分层发现}：curated / experimental / system 三层分类机制
+  \item \textbf{CLI 工具}：提供 \texttt{npx skills add} 级别的命令行安装体验
+\end{enumerate}
+
+\section{结论}
+
+skills.sh 是一个轻量、开放的 Agent Skills 生态，核心优势在于\textbf{格式简洁}（SKILL.md）和\textbf{多 Agent 兼容}（56+）。但它面向开发者个人，缺少企业级必需的安全扫描、审批流程、权限控制和审计能力。
+
+我们的企业应用商店在安全、审批、权限方面远超 skills.sh，但在\textbf{分发便利性}和\textbf{跨 Agent 兼容性}方面可以向其学习。建议后续迭代中：
+
+\begin{itemize}[nosep]
+  \item 考虑兼容 SKILL.md 格式，方便直接从 skills.sh 生态引入技能
+  \item 参考 skills.sh 的浏览体验，优化我们的应用市场前端
+  \item 提供类似 \texttt{npx skills add} 的 CLI 安装工具
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v1.0 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}
