@@ -1,8 +1,12 @@
 import { api } from "./client";
-import type { Paginated, Skill, SkillDetail } from "./types";
+import type { DownloadResponse, InstallResponse, Paginated, Skill, SkillDetail } from "./types";
 
 export async function fetchSkills(params?: { status?: string; page?: number; page_size?: number }) {
   return api.get<Paginated<Skill>>("/skills", { params });
+}
+
+export async function fetchMySkills(params?: { page?: number; page_size?: number }) {
+  return api.get<Paginated<Skill>>("/skills/mine", { params });
 }
 
 export async function fetchSkillDetail(id: string) {
@@ -11,4 +15,12 @@ export async function fetchSkillDetail(id: string) {
 
 export async function uploadSkill(form: FormData) {
   return api.post<Skill>("/skills/upload", form);
+}
+
+export async function downloadSkill(id: string) {
+  return api.get<DownloadResponse>(`/skills/${id}/download`);
+}
+
+export async function installSkill(id: string) {
+  return api.post<InstallResponse>(`/skills/${id}/install`);
 }

@@ -28,6 +28,15 @@ export interface Paginated<T> {
   page_size: number;
 }
 
+export interface DownloadResponse {
+  download_url: string;
+}
+
+export interface InstallResponse {
+  message: string;
+  path: string;
+}
+
 export interface ReviewPendingItem {
   skill: Skill;
   scans: ScanLayer[];

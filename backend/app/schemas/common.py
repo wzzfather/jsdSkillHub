@@ -71,6 +71,15 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class DownloadResponse(BaseModel):
+    download_url: str
+
+
+class InstallResponse(BaseModel):
+    message: str
+    path: str
+
+
 class WorkflowStep(BaseModel):
     key: str
     title: str

@@ -40,3 +40,25 @@ async def upload_bytes(key: str, data: bytes, content_type: str = "application/z
     await asyncio.to_thread(_upload)
     base = s.minio_endpoint_url.rstrip("/")
     return f"{base}/{s.minio_bucket}/{key}"
+
+
+def generate_download_url(key: str, expires: int = 3600) -> str:
+    """使用 boto3 / S3 API 生成临时 GET 预签名 URL（默认 3600 秒）。"""
+    s = get_settings()
+    client = _client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": s.minio_bucket, "Key": key},
+        ExpiresIn=expires,
+    )
+
+
+async def download_object_to_file(key: str, dest_path: str) -> None:
+    """从 MinIO 桶下载对象到本地路径（在线程中执行同步 boto3 调用）。"""
+    s = get_settings()
+    client = _client()
+
+    def _download() -> None:
+        client.download_file(s.minio_bucket, key, dest_path)
+
+    await asyncio.to_thread(_download)

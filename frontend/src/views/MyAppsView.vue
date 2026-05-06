@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { fetchSkills } from "@/api/skills";
+import { fetchMySkills } from "@/api/skills";
 import type { Skill } from "@/api/types";
 
 const router = useRouter();
@@ -37,7 +37,7 @@ async function load() {
     const all: Skill[] = [];
     let p = 1;
     while (true) {
-      const { data } = await fetchSkills({ page: p, page_size: 100 });
+      const { data } = await fetchMySkills({ page: p, page_size: 100 });
       all.push(...data.items);
       if (data.items.length === 0 || all.length >= data.total) break;
       p += 1;
@@ -61,7 +61,7 @@ onMounted(() => void load());
   <div>
     <div class="card-panel">
       <h2 class="page-title">我的应用</h2>
-      <p class="muted">已上架 Skill 及相关记录。</p>
+      <p class="muted">你提交的 Skill（含扫描中、待审批、已上架等所有状态）。</p>
     </div>
 
     <div v-if="loading" class="muted" style="padding: 12px">加载中…</div>

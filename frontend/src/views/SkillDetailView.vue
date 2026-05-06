@@ -2,14 +2,15 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
-import { fetchSkillDetail } from "@/api/skills";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { downloadSkill, fetchSkillDetail, installSkill } from "@/api/skills";
 import type { ScanLayer, SkillDetail } from "@/api/types";
 
 const props = defineProps<{ id: string }>();
 
 const router = useRouter();
 const loading = ref(false);
+const installing = ref(false);
 const detail = ref<SkillDetail | null>(null);
 
 function formatTime(iso?: string | null) {
@@ -50,8 +51,51 @@ function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
   return scan.passed ? "ok" : "bad";
 }
 
-function installSoon() {
-  ElMessage.info("功能开发中");
+function apiErrorDetail(err: unknown): string {
+  const e = err as { response?: { data?: { detail?: unknown } } };
+  const d = e.response?.data?.detail;
+  if (typeof d === "string") return d;
+  if (d && typeof d === "object" && "detail" in d) {
+    const inner = (d as { detail?: unknown }).detail;
+    if (typeof inner === "string") return inner;
+  }
+  return "操作失败";
+}
+
+async function onDownloadZip() {
+  if (!detail.value) return;
+  try {
+    const { data } = await downloadSkill(detail.value.id);
+    window.open(data.download_url, "_blank", "noopener,noreferrer");
+  } catch (e) {
+    ElMessage.error(apiErrorDetail(e));
+  }
+}
+
+async function onInstallOpenClaw() {
+  if (!detail.value) return;
+  try {
+    await ElMessageBox.confirm(
+      "将把 Skill 安装到本机 OpenClaw 目录（已存在同名目录会先备份再覆盖）。是否继续？",
+      "安装到 OpenClaw",
+      {
+        type: "warning",
+        confirmButtonText: "安装",
+        cancelButtonText: "取消",
+      },
+    );
+  } catch {
+    return;
+  }
+  installing.value = true;
+  try {
+    const { data } = await installSkill(detail.value.id);
+    ElMessage.success(`${data.message}：${data.path}`);
+  } catch (e) {
+    ElMessage.error(apiErrorDetail(e));
+  } finally {
+    installing.value = false;
+  }
 }
 
 async function load() {
@@ -71,10 +115,11 @@ function text(key: string) {
   const map: Record<string, string> = {
     loading: "加载中…",
     back: "返回市场",
-    install: "安装",
     meta: "元信息",
     desc: "描述",
     scanSum: "扫描结果摘要",
+    dlZip: "下载 zip",
+    installOc: "安装到 OpenClaw",
   };
   return map[key] ?? key;
 }
@@ -101,8 +146,9 @@ onMounted(() => void load());
           <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
           <el-tag v-if="detail.category" effect="plain" type="info">{{ detail.category }}</el-tag>
         </div>
-        <div class="actions">
-          <el-button type="success" @click="installSoon">{{ text("install") }}</el-button>
+        <div v-if="detail.status === 'published'" class="actions">
+          <el-button class="neutral" plain @click="onDownloadZip">{{ text("dlZip") }}</el-button>
+          <el-button type="success" :loading="installing" @click="onInstallOpenClaw">{{ text("installOc") }}</el-button>
         </div>
       </div>
 

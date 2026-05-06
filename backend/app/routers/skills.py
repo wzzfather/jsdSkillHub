@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import tempfile
@@ -16,9 +17,17 @@ from app.models.scan_result import ScanResult
 from app.models.skill import Skill
 from app.models.skill_version import SkillVersion
 from app.models.user import User
-from app.schemas.common import PaginatedSkills, ScanLayerSummary, SkillDetailResponse, SkillResponse
+from app.schemas.common import (
+    DownloadResponse,
+    InstallResponse,
+    PaginatedSkills,
+    ScanLayerSummary,
+    SkillDetailResponse,
+    SkillResponse,
+)
 from app.services import scan_service
-from app.utils.minio_client import upload_bytes
+from app.services.skill_package_service import install_skill_to_openclaw, package_object_key
+from app.utils.minio_client import generate_download_url, upload_bytes
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 logger = logging.getLogger(__name__)
@@ -132,6 +141,80 @@ async def upload_skill(
 
     background_tasks.add_task(_run_scan_job, str(skill.id), tmp_path)
     return skill
+
+
+@router.get("/mine", response_model=PaginatedSkills)
+async def list_my_skills(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    page: int = 1,
+    page_size: int = 20,
+) -> PaginatedSkills:
+    page_size = _clamp_page_size(page_size)
+    if page < 1:
+        page = 1
+
+    stmt = select(Skill).where(Skill.author_id == current_user.id)
+    count_stmt = select(func.count()).select_from(Skill).where(Skill.author_id == current_user.id)
+
+    total = int(await db.scalar(count_stmt) or 0)
+    stmt = stmt.order_by(Skill.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.scalars(stmt)).all()
+    items = [SkillResponse.model_validate(r) for r in rows]
+    return PaginatedSkills(items=items, total=total, page=page, page_size=page_size)
+
+
+def _require_published_package(skill: Skill | None) -> Skill:
+    if skill is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"detail": "未找到", "code": "NOT_FOUND"})
+    if skill.status != "published":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "仅已上架 Skill 可下载或安装", "code": "NOT_PUBLISHED"},
+        )
+    if not skill.package_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "缺少安装包", "code": "NO_PACKAGE"},
+        )
+    return skill
+
+
+@router.get("/{skill_id}/download", response_model=DownloadResponse)
+async def download_skill_package(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> DownloadResponse:
+    _ = current_user
+    skill = _require_published_package(await db.get(Skill, skill_id))
+    key = package_object_key(skill)
+    url = await asyncio.to_thread(generate_download_url, key, 3600)
+    return DownloadResponse(download_url=url)
+
+
+@router.post("/{skill_id}/install", response_model=InstallResponse)
+async def install_skill_endpoint(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> InstallResponse:
+    _ = current_user
+    skill = _require_published_package(await db.get(Skill, skill_id))
+    try:
+        path_str = await install_skill_to_openclaw(skill)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": str(e), "code": "INSTALL_FAILED"},
+        ) from e
+    except Exception:
+        logger.exception("安装 Skill 失败 skill_id=%s", skill_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"detail": "安装失败", "code": "INSTALL_FAILED"},
+        )
+    return InstallResponse(message="安装成功", path=path_str)
 
 
 @router.get("/{skill_id}", response_model=SkillDetailResponse)

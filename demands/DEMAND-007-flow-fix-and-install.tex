@@ -1,0 +1,197 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 需求文档}
+\fancyhead[R]{\small\color{graytext} DEMAND-007}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{DEMAND-007：功能流转修复与安装能力}}
+\author{万能产品小助手（PM AI）\\魏子政 审阅}
+\date{2026-05-06 / 版本 v0.1}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+提出日期 & 2026-05-06 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{danger}{P0} \\
+状态 & \textcolor{progress}{进行中} \\
+总需求编号 & D-013 \\
+前置需求 & D-011（MVP 后端）、D-012（前端重写） \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\section{需求背景}
+
+MVP 阶段后端三层扫描已跑通，前端也已重写。但魏子政验收时发现三个关键问题：
+
+\begin{enumerate}[nosep]
+  \item 上传 Skill 并扫描完成后，\textbf{我的应用页面没有体现}
+  \item 上传 Skill 并扫描完成后，\textbf{审批工作台没有体现}
+  \item Skill 详情页的安装按钮点击后只提示"功能开发中"，\textbf{缺少实际安装能力}
+\end{enumerate}
+
+\section{根因分析}
+
+\subsection{问题 1：我的应用看不到上传的 Skill}
+
+\begin{itemize}[nosep]
+  \item 后端 \texttt{GET /api/skills} 的 \texttt{status\_filter} 参数默认值为 \texttt{"published"}
+  \item 前端 MyAppsView 调用时没有传 \texttt{status} 参数
+  \item 因此只能查到已上架的 Skill，查不到 scanning / pending\_review / rejected 状态的
+\end{itemize}
+
+\subsection{问题 2：审批工作台看不到（部分可用）}
+
+\begin{itemize}[nosep]
+  \item 审批工作台调用的是 \texttt{GET /api/reviews}，这个接口查的是 \texttt{pending\_review} 状态
+  \item 如果扫描正常完成，Skill 状态会变为 \texttt{pending\_review}，审批工作台应该能看到
+  \item 但如果扫描失败或异常，可能 Skill 卡在 \texttt{scanning} 状态，审批工作台就看不到
+\end{itemize}
+
+\subsection{问题 3：安装功能缺失}
+
+\begin{itemize}[nosep]
+  \item SkillDetailView 的安装按钮目前只调用 \texttt{ElMessage.info("功能开发中")}
+  \item 需要实现实际安装能力：npm 下载和压缩包下载
+\end{itemize}
+
+\section{修复方案}
+
+\subsection{Bug 修复：我的应用页面}
+
+\textbf{后端}：新增接口 \texttt{GET /api/skills/mine}，返回当前用户提交的所有 Skill（不限状态）。
+
+\begin{itemize}[nosep]
+  \item 需要登录（get\_current\_user）
+  \item 按 author\_id 过滤
+  \item 返回所有状态（scanning / pending\_review / published / rejected）
+  \item 分页支持
+\end{itemize}
+
+\textbf{前端}：MyAppsView 改为调用 \texttt{/api/skills/mine}。
+
+\subsection{Bug 修复：流转状态完善}
+
+\textbf{后端}：确保所有状态转换正确：
+\begin{itemize}[nosep]
+  \item 上传 $\to$ scanning（已有）
+  \item 扫描完成 $\to$ pending\_review（已有）
+  \item 扫描失败 $\to$ pending\_review（已有，附带 system 扫描失败记录）
+  \item 审批通过 $\to$ published（已有）
+  \item 审批驳回 $\to$ rejected（已有）
+\end{itemize}
+
+\textbf{前端}：我的应用页面的状态标签要覆盖所有四种状态。
+
+\subsection{新功能：安装能力}
+
+在 SkillDetailView 实现安装功能，支持两种方式：
+
+\subsubsection{方式 1：压缩包下载}
+
+\begin{itemize}[nosep]
+  \item Skill 上传时已存储到 MinIO，package\_url 已有
+  \item 前端增加"下载 zip"按钮，直接打开 package\_url 链接下载
+  \item 后端增加 \texttt{GET /api/skills/\{id\}/download}，返回 302 重定向到 MinIO 预签名 URL
+\end{itemize}
+
+\subsubsection{方式 2：npm 安装（OpenClaw 格式 Skill）}
+
+\begin{itemize}[nosep]
+  \item OpenClaw 格式的 Skill 安装本质是：下载 zip $\to$ 解压到 \texttt{\textasciitilde/.openclaw/skills/} 或工作区 \texttt{skills/}
+  \item 后端增加 \texttt{POST /api/skills/\{id\}/install} 接口：
+  \begin{enumerate}[nosep]
+    \item 从 MinIO 下载 zip
+    \item 解压到目标目录（默认 \texttt{\textasciitilde/.openclaw/skills/}）
+    \item 返回安装结果（成功/失败 + 目标路径）
+  \end{enumerate}
+  \item 前端 SkillDetailView 增加两个按钮：「下载 zip」和「安装到 OpenClaw」
+  \item 安装按钮点击后弹出确认对话框，显示目标路径，确认后调用接口
+\end{itemize}
+
+\subsubsection{安装页面优化}
+
+SkillDetailView 安装区域改造：
+\begin{itemize}[nosep]
+  \item 「下载 zip」按钮：触发浏览器下载
+  \item 「安装到 OpenClaw」按钮：调用后端安装接口，显示安装进度/结果
+  \item 仅已上架（published）的 Skill 显示安装按钮
+  \item 安装成功后显示成功提示和安装路径
+\end{itemize}
+
+\section{具体任务}
+
+\subsection{后端}
+
+\begin{enumerate}[nosep]
+  \item 新增 \texttt{GET /api/skills/mine} --- 当前用户的所有 Skill（不限状态）
+  \item 新增 \texttt{GET /api/skills/\{id\}/download} --- 下载 zip（302 重定向到 MinIO 预签名 URL）
+  \item 新增 \texttt{POST /api/skills/\{id\}/install} --- 安装到本地 OpenClaw skills 目录
+  \item 前端 API 层新增对应函数（\texttt{fetchMySkills}、\texttt{downloadSkill}、\texttt{installSkill}）
+\end{enumerate}
+
+\subsection{前端}
+
+\begin{enumerate}[nosep]
+  \item MyAppsView：改用 \texttt{GET /api/skills/mine}，覆盖所有状态
+  \item SkillDetailView：安装区域改造（下载 zip + 安装到 OpenClaw）
+  \item 新增 api/skills.ts 中的 \texttt{fetchMySkills}、\texttt{downloadSkill}、\texttt{installSkill} 函数
+  \item types.ts 补充需要的新类型
+\end{enumerate}
+
+\section{验收标准}
+
+\begin{itemize}
+  \item[$\square$] 上传 Skill $\to$ 扫描完成 $\to$ 我的应用页面能看到（状态为待审批）
+  \item[$\square$] 上传 Skill $\to$ 扫描完成 $\to$ 审批工作台能看到
+  \item[$\square$] 审批通过后 $\to$ 我的应用页面状态变为已上架
+  \item[$\square$] 审批驳回后 $\to$ 我的应用页面状态变为已驳回
+  \item[$\square$] Skill 详情页点击"下载 zip"能下载文件
+  \item[$\square$] Skill 详情页点击"安装到 OpenClaw"能安装成功
+  \item[$\square$] 仅已上架 Skill 显示安装按钮
+  \item[$\square$] npm run build 无报错
+\end{itemize}
+
+\section*{更新记录}
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v0.1 & 2026-05-06 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}
