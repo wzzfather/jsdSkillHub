@@ -50,6 +50,9 @@ function goBrand() {
           <el-button v-if="isAdmin" text :class="navClass('review')" @click="router.push({ name: 'review' })">
             审批工作台
           </el-button>
+          <el-button v-if="isAdmin" text :class="navClass('admin-apps')" @click="router.push({ name: 'admin-apps' })">
+            应用管理
+          </el-button>
           <el-button text :class="navClass('dashboard')" @click="router.push({ name: 'dashboard' })">看板</el-button>
           <el-button text class="nav-link" @click="logout">退出</el-button>
         </template>

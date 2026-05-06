@@ -1,8 +1,27 @@
 import { api } from "./client";
-import type { ActionResponse, DownloadResponse, InstallResponse, Paginated, Skill, SkillDetail } from "./types";
+import type {
+  ActionResponse,
+  DownloadResponse,
+  InstallResponse,
+  Paginated,
+  Skill,
+  SkillAdmin,
+  SkillDetail,
+} from "./types";
 
-export async function fetchSkills(params?: { status?: string; page?: number; page_size?: number }) {
+export async function fetchSkills(params?: {
+  status?: string;
+  page?: number;
+  page_size?: number;
+  category?: string;
+  sort?: string;
+  search?: string;
+}) {
   return api.get<Paginated<Skill>>("/skills", { params });
+}
+
+export async function fetchAdminSkills(params?: { status?: string; page?: number; page_size?: number }) {
+  return api.get<Paginated<SkillAdmin>>("/skills/admin/all", { params });
 }
 
 export async function fetchMySkills(params?: { page?: number; page_size?: number }) {

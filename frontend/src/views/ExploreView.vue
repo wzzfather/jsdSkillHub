@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { fetchSkills } from "@/api/skills";
@@ -8,13 +8,14 @@ import type { Skill } from "@/api/types";
 const router = useRouter();
 
 const loading = ref(false);
-const allItems = ref<Skill[]>([]);
+const items = ref<Skill[]>([]);
+const total = ref(0);
 const query = ref("");
-const activeCategory = ref<"all" | "productivity" | "security" | "support" | "knowledge" | "other">("all");
+const debouncedSearch = ref("");
+const categoryFilter = ref("");
+const sortBy = ref<"newest" | "popular">("newest");
 const page = ref(1);
 const pageSize = 12;
-
-const STANDARD = new Set(["productivity", "security", "support", "knowledge"]);
 
 function skillCategoryLabel(skill: Skill) {
   return skill.category && skill.category.trim() ? skill.category : "—";
@@ -26,50 +27,21 @@ function authorLabel(skill: Skill) {
   return id.length <= 12 ? id : `…${id.slice(-10)}`;
 }
 
-const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  return allItems.value.filter((s) => {
-    const catOk = (() => {
-      const c = (s.category ?? "").toLowerCase();
-      if (activeCategory.value === "all") return true;
-      if (activeCategory.value === "other") return !c || !STANDARD.has(c);
-      return c === activeCategory.value;
-    })();
-    if (!catOk) return false;
-    if (!q) return true;
-    const name = (s.name ?? "").toLowerCase();
-    const desc = (s.description ?? "").toLowerCase();
-    return name.includes(q) || desc.includes(q);
-  });
-});
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)));
-
-const paged = computed(() => {
-  const start = (page.value - 1) * pageSize;
-  return filtered.value.slice(start, start + pageSize);
-});
-
-watch([query, activeCategory], () => {
-  page.value = 1;
-});
-
-watch(filtered, () => {
-  if (page.value > totalPages.value) page.value = totalPages.value;
-});
-
-async function loadAllPublished() {
+async function loadPage() {
   loading.value = true;
-  const items: Skill[] = [];
   try {
-    let p = 1;
-    while (true) {
-      const { data } = await fetchSkills({ status: "published", page: p, page_size: 100 });
-      items.push(...data.items);
-      if (data.items.length === 0 || items.length >= data.total) break;
-      p += 1;
-    }
-    allItems.value = items;
+    const cat = typeof categoryFilter.value === "string" ? categoryFilter.value.trim().toLowerCase() : "";
+
+    const { data } = await fetchSkills({
+      status: "published",
+      page: page.value,
+      page_size: pageSize,
+      category: cat || undefined,
+      sort: sortBy.value,
+      search: debouncedSearch.value || undefined,
+    });
+    items.value = data.items;
+    total.value = data.total;
   } catch {
     ElMessage.error("加载市场列表失败");
   } finally {
@@ -77,9 +49,28 @@ async function loadAllPublished() {
   }
 }
 
-function setCat(v: typeof activeCategory.value) {
-  activeCategory.value = v;
-}
+watch(query, (_q, _o, onCleanup) => {
+  const tid = window.setTimeout(() => {
+    debouncedSearch.value = query.value.trim();
+  }, 300);
+  onCleanup(() => clearTimeout(tid));
+});
+
+watch(debouncedSearch, () => {
+  page.value = 1;
+});
+
+watch([categoryFilter, sortBy], () => {
+  page.value = 1;
+});
+
+watch(
+  [categoryFilter, sortBy, page, debouncedSearch],
+  () => {
+    void loadPage();
+  },
+  { immediate: true },
+);
 
 function goDetail(s: Skill) {
   router.push({ name: "skill-detail", params: { id: s.id } });
@@ -91,20 +82,11 @@ function text(key: string) {
     sub: "已上架 Skill 一览，可使用搜索与分类快速定位。",
     searchPh: "按名称或简介搜索…",
     empty: "暂无符合条件的 Skill",
+    category: "分类",
+    sort: "排序",
   };
   return map[key] ?? key;
 }
-
-const tags: { key: typeof activeCategory.value; label: string }[] = [
-  { key: "all", label: "全部" },
-  { key: "productivity", label: "productivity" },
-  { key: "security", label: "security" },
-  { key: "support", label: "support" },
-  { key: "knowledge", label: "knowledge" },
-  { key: "other", label: "其他" },
-];
-
-onMounted(() => void loadAllPublished());
 </script>
 
 <template>
@@ -113,27 +95,41 @@ onMounted(() => void loadAllPublished());
       <h1 class="page-title">{{ text("headline") }}</h1>
       <p class="muted">{{ text("sub") }}</p>
       <el-input v-model="query" class="search" clearable :placeholder="text('searchPh')" />
-      <div class="tag-row">
-        <el-button
-          v-for="t in tags"
-          :key="t.key"
-          size="small"
-          :type="activeCategory === t.key ? 'primary' : 'default'"
-          plain
-          @click="setCat(t.key)"
-        >
-          {{ t.label }}
-        </el-button>
+      <div class="filters">
+        <div class="filter-item">
+          <span class="filter-label muted">{{ text("category") }}</span>
+          <el-select v-model="categoryFilter" class="filter-control" placeholder="全部分类">
+            <el-option label="全部" value="" />
+            <el-option label="productivity" value="productivity" />
+            <el-option label="security" value="security" />
+            <el-option label="support" value="support" />
+            <el-option label="knowledge" value="knowledge" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </div>
+        <div class="filter-item">
+          <span class="filter-label muted">{{ text("sort") }}</span>
+          <el-select v-model="sortBy" class="filter-control">
+            <el-option label="最新上架" value="newest" />
+            <el-option label="名称排序" value="popular" />
+          </el-select>
+        </div>
       </div>
     </div>
 
     <div v-if="loading" class="muted loading">加载中…</div>
 
-    <el-empty v-else-if="filtered.length === 0" :description="text('empty')" />
+    <el-empty v-else-if="items.length === 0" :description="text('empty')" />
 
     <el-row v-else :gutter="16" class="grid">
-      <el-col v-for="s in paged" :key="s.id" :xs="24" :sm="12" :md="8" :lg="6">
-        <div class="skill-card card-panel" role="button" tabindex="0" @click="goDetail(s)" @keydown.enter.prevent="goDetail(s)">
+      <el-col v-for="s in items" :key="s.id" :xs="24" :sm="12" :md="8" :lg="6">
+        <div
+          class="skill-card card-panel"
+          role="button"
+          tabindex="0"
+          @click="goDetail(s)"
+          @keydown.enter.prevent="goDetail(s)"
+        >
           <div class="name">{{ s.name }}</div>
           <div class="meta muted">v{{ s.version }}</div>
           <div class="tagline">
@@ -145,13 +141,13 @@ onMounted(() => void loadAllPublished());
       </el-col>
     </el-row>
 
-    <div v-if="!loading && filtered.length" class="pager">
+    <div v-if="!loading && total > 0" class="pager">
       <el-pagination
         v-model:current-page="page"
         background
         layout="prev, pager, next, total"
         :page-size="pageSize"
-        :total="filtered.length"
+        :total="total"
       />
     </div>
   </div>
@@ -167,11 +163,28 @@ onMounted(() => void loadAllPublished());
   max-width: 520px;
 }
 
-.tag-row {
+.filters {
   margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.filter-label {
+  font-size: 12px;
+}
+
+.filter-control {
+  width: 220px;
+  max-width: 100%;
 }
 
 .loading {

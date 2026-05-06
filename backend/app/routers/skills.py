@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import AsyncSessionLocal, get_db
@@ -22,8 +22,10 @@ from app.schemas.common import (
     DownloadResponse,
     InstallResponse,
     OfflineRequest,
+    PaginatedAdminSkills,
     PaginatedSkills,
     ScanLayerSummary,
+    SkillAdminRow,
     SkillDetailResponse,
     SkillResponse,
 )
@@ -33,6 +35,14 @@ from app.utils.minio_client import generate_download_url, upload_bytes
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 logger = logging.getLogger(__name__)
+
+_STANDARD_MARKET_CATEGORIES = ("productivity", "security", "support", "knowledge")
+
+
+def _norm_category_column():
+    """lower(trim(coalesce(category, '')))"""
+    trimmed = func.trim(func.coalesce(Skill.category, ""))
+    return func.lower(trimmed)
 
 
 def _clamp_page_size(page_size: int) -> int:
@@ -45,6 +55,9 @@ async def list_skills(
     page: int = 1,
     page_size: int = 20,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    category: Annotated[str | None, Query()] = None,
+    sort: str = "newest",
+    search: Annotated[str | None, Query()] = None,
 ) -> PaginatedSkills:
     page_size = _clamp_page_size(page_size)
     if page < 1:
@@ -57,11 +70,69 @@ async def list_skills(
     stmt = stmt.where(Skill.status == effective_status)
     count_stmt = count_stmt.where(Skill.status == effective_status)
 
+    if category is not None and category.strip():
+        cat_key = category.strip().lower()
+        norm = _norm_category_column()
+        if cat_key == "other":
+            cat_filter = or_(norm == "", ~norm.in_(_STANDARD_MARKET_CATEGORIES))
+        elif cat_key in _STANDARD_MARKET_CATEGORIES:
+            cat_filter = norm == cat_key
+        else:
+            cat_filter = norm == cat_key
+        stmt = stmt.where(cat_filter)
+        count_stmt = count_stmt.where(cat_filter)
+
+    q = search.strip() if search and search.strip() else None
+    if q:
+        like = f"%{q}%"
+        search_filter = or_(Skill.name.ilike(like), Skill.description.ilike(like))
+        stmt = stmt.where(search_filter)
+        count_stmt = count_stmt.where(search_filter)
+
+    sort_norm = sort.strip().lower() if sort else "newest"
+    if sort_norm not in {"newest", "popular"}:
+        sort_norm = "newest"
+    if sort_norm == "popular":
+        stmt = stmt.order_by(Skill.name.asc(), Skill.created_at.desc())
+    else:
+        stmt = stmt.order_by(Skill.created_at.desc())
+
     total = int(await db.scalar(count_stmt) or 0)
-    stmt = stmt.order_by(Skill.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = (await db.scalars(stmt)).all()
     items = [SkillResponse.model_validate(r) for r in rows]
     return PaginatedSkills(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/admin/all", response_model=PaginatedAdminSkills)
+async def list_skills_admin(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_admin)],
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> PaginatedAdminSkills:
+    page_size = _clamp_page_size(page_size)
+    if page < 1:
+        page = 1
+
+    stmt = select(Skill).options(selectinload(Skill.author))
+    count_stmt = select(func.count()).select_from(Skill)
+
+    if status_filter is not None and status_filter.strip():
+        sf = status_filter.strip()
+        stmt = stmt.where(Skill.status == sf)
+        count_stmt = count_stmt.where(Skill.status == sf)
+
+    total = int(await db.scalar(count_stmt) or 0)
+    stmt = stmt.order_by(Skill.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.scalars(stmt)).all()
+    items: list[SkillAdminRow] = []
+    for r in rows:
+        base = SkillResponse.model_validate(r)
+        uname = r.author.username if r.author is not None else None
+        items.append(SkillAdminRow(**base.model_dump(), author_username=uname))
+    return PaginatedAdminSkills(items=items, total=total, page=page, page_size=page_size)
 
 
 async def _run_scan_job(skill_id: str, zip_path: str) -> None:

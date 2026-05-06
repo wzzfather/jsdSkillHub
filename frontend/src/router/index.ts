@@ -10,6 +10,7 @@ const SkillDetailView = () => import("@/views/SkillDetailView.vue");
 const SubmitView = () => import("@/views/SubmitView.vue");
 const MyAppsView = () => import("@/views/MyAppsView.vue");
 const ReviewView = () => import("@/views/ReviewView.vue");
+const AdminAppsView = () => import("@/views/AdminAppsView.vue");
 const DashboardView = () => import("@/views/DashboardView.vue");
 
 export const router = createRouter({
@@ -38,6 +39,12 @@ export const router = createRouter({
       path: "/review",
       name: "review",
       component: ReviewView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/apps",
+      name: "admin-apps",
+      component: AdminAppsView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/dashboard", name: "dashboard", component: DashboardView, meta: { requiresAuth: true } },

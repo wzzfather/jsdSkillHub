@@ -96,6 +96,17 @@ class PaginatedSkills(BaseModel):
     page_size: int
 
 
+class SkillAdminRow(SkillResponse):
+    author_username: str | None = None
+
+
+class PaginatedAdminSkills(BaseModel):
+    items: list[SkillAdminRow]
+    total: int
+    page: int
+    page_size: int
+
+
 class ReviewPendingItem(BaseModel):
     skill: SkillResponse
     scans: list[ScanLayerSummary]

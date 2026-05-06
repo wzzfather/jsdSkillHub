@@ -22,6 +22,10 @@ export interface SkillDetail extends Skill {
   scans: ScanLayer[];
 }
 
+export interface SkillAdmin extends Skill {
+  author_username?: string | null;
+}
+
 export interface Paginated<T> {
   items: T[];
   total: number;
