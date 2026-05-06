@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     qwen_api_base: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_api_key: str = ""
-    qwen_model: str = "qwen-turbo"
+    qwen_model: str = "qwen-flash"
 
     clamav_host: str = "localhost"
     clamav_port: int = 3310
