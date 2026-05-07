@@ -463,7 +463,7 @@ onMounted(() => void load());
 }
 
 .act-outline:hover {
-  background: rgba(26, 26, 46, 0.06) !important;
+  background: color-mix(in srgb, var(--app-text) 6%, transparent) !important;
 }
 
 .npm-btn {
@@ -511,7 +511,7 @@ onMounted(() => void load());
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(26, 26, 46, 0.06);
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
   font-size: 22px;
   flex-shrink: 0;
 }

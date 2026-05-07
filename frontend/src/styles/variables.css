@@ -59,6 +59,54 @@
   --el-border-radius-small: 8px;
 }
 
+/* Dark theme: layered neutrals + cool accent (not a simple color invert) */
+html.dark {
+  --app-bg: #0e1015;
+  --app-surface: #161b24;
+  --app-primary: #7eb8ff;
+  --app-primary-accent: #5b9cf8;
+  --app-primary-deep: #3d8bf0;
+  --app-text: #e8eaef;
+  --app-muted: #9aa3b2;
+  --app-placeholder: #6b7280;
+  --app-border: #2a3140;
+  --app-border-strong: #3d4759;
+  --app-header-bg: #12171f;
+  --app-header-text: #e8eaef;
+
+  --app-success: #4ade80;
+  --app-danger: #f87171;
+  --app-warning: #fbbf24;
+  --app-info: #60a5fa;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 10px 28px rgba(0, 0, 0, 0.5);
+  --shadow-header: 0 1px 0 var(--app-border);
+  --shadow-auth-card: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --focus-ring: 0 0 0 3px rgba(91, 156, 248, 0.35);
+
+  --status-published-bg: #172554;
+  --status-published-text: #93c5fd;
+  --status-scanning-bg: #2e1065;
+  --status-scanning-text: #c4b5fd;
+  --status-pending-bg: #422006;
+  --status-pending-text: #fde68a;
+  --status-rejected-bg: #450a0a;
+  --status-rejected-text: #fca5a5;
+
+  --el-color-primary: #5b9cf8;
+  --el-color-primary-light-3: #7eb8ff;
+  --el-color-primary-light-5: #93c5fd;
+  --el-color-primary-light-7: #64748b;
+  --el-color-primary-light-9: #1e293b;
+  --el-color-success: #4ade80;
+  --el-color-warning: #fbbf24;
+  --el-color-danger: #f87171;
+  --el-color-info: #60a5fa;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 8px;
+}
+
 * {
   transition: all 0.2s ease;
 }

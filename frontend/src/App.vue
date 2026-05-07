@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
-import { ArrowDown } from "@element-plus/icons-vue";
+import { ArrowDown, Moon, Sunny } from "@element-plus/icons-vue";
 import { useAuthStore } from "@/stores/auth";
+
+const THEME_STORAGE_KEY = "theme";
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
+const isDark = ref(false);
 
 const isAuthed = computed(() => !!auth.token);
 const isAdmin = computed(() => auth.isAdmin);
@@ -31,6 +34,36 @@ function navClass(name: string | string[]) {
 function goBrand() {
   router.push(auth.token ? { name: "dashboard" } : { name: "explore" });
 }
+
+function applyTheme(dark: boolean) {
+  const root = document.documentElement;
+  if (dark) {
+    root.classList.add("dark");
+    localStorage.setItem(THEME_STORAGE_KEY, "dark");
+  } else {
+    root.classList.remove("dark");
+    localStorage.setItem(THEME_STORAGE_KEY, "light");
+  }
+  isDark.value = dark;
+}
+
+function toggleTheme() {
+  document.documentElement.classList.toggle("dark");
+  const dark = document.documentElement.classList.contains("dark");
+  localStorage.setItem(THEME_STORAGE_KEY, dark ? "dark" : "light");
+  isDark.value = dark;
+}
+
+onMounted(() => {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "dark") {
+    applyTheme(true);
+  } else if (stored === "light") {
+    applyTheme(false);
+  } else {
+    applyTheme(false);
+  }
+});
 </script>
 
 <template>
@@ -44,7 +77,8 @@ function goBrand() {
                 d="M16 4l11 6.5v13L16 30 5 23.5v-13L16 4z"
                 stroke="currentColor"
                 stroke-width="1.5"
-                fill="rgba(26,26,46,0.06)"
+                fill="currentColor"
+                fill-opacity="0.06"
               />
               <path d="M16 9l7 4v10l-7 4-7-4V13l7-4z" fill="currentColor" fill-opacity="0.12" />
             </svg>
@@ -72,6 +106,17 @@ function goBrand() {
       </div>
 
       <div class="header-right">
+        <button
+          type="button"
+          class="theme-toggle"
+          :aria-label="isDark ? '切换为亮色主题' : '切换为暗色主题'"
+          @click="toggleTheme"
+        >
+          <el-icon class="theme-toggle-ico" :size="18" aria-hidden="true">
+            <Sunny v-if="isDark" />
+            <Moon v-else />
+          </el-icon>
+        </button>
         <template v-if="!isAuthed">
           <button type="button" class="plain-nav" :class="navClass('login')" @click="router.push({ name: 'login' })">登录</button>
           <button type="button" class="plain-nav register-pill" :class="navClass('register')" @click="router.push({ name: 'register' })">
@@ -179,12 +224,12 @@ function goBrand() {
 }
 
 .plain-nav:hover {
-  background: rgba(26, 26, 46, 0.06);
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-primary);
 }
 
 .plain-nav.is-active {
-  background: rgba(26, 26, 46, 0.1);
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
   color: var(--app-primary);
   font-weight: 600;
 }
@@ -206,6 +251,32 @@ function goBrand() {
   flex-shrink: 0;
 }
 
+.theme-toggle {
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.theme-toggle-ico {
+  color: var(--app-muted);
+  line-height: 1;
+}
+
+.theme-toggle:hover .theme-toggle-ico {
+  color: var(--app-primary);
+}
+
 .user-trigger {
   display: inline-flex;
   align-items: center;
@@ -216,7 +287,7 @@ function goBrand() {
 }
 
 .user-trigger:hover {
-  background: rgba(26, 26, 46, 0.06);
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
 }
 
 .user-avatar {

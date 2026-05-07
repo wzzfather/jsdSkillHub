@@ -75,7 +75,8 @@ onMounted(() => {
               d="M16 4l11 6.5v13L16 30 5 23.5v-13L16 4z"
               stroke="currentColor"
               stroke-width="1.5"
-              fill="rgba(26,26,46,0.06)"
+              fill="currentColor"
+              fill-opacity="0.06"
             />
             <path d="M16 9l7 4v10l-7 4-7-4V13l7-4z" fill="currentColor" fill-opacity="0.12" />
           </svg>
