@@ -92,30 +92,59 @@ KPI 统计总览
 
 ### 前置要求
 
-- Node.js ≥ 18
-- Python ≥ 3.11
-- Docker & Docker Compose
-- MinIO（或 S3 兼容存储）
+- Docker & Docker Compose (v2+)
+- Node.js ≥ 18（仅本地开发需要）
+- Python ≥ 3.11（仅本地开发需要）
+- 通义千问 API Key（用于 LLM 语义扫描）
 
-### 1. 启动基础设施
+### 方式一：Docker Compose 一键部署（推荐）
+
+适用于生产环境或快速体验，所有服务容器化运行。
 
 ```bash
-docker compose up -d postgres minio
+# 1. 克隆仓库
+git clone https://github.com/wzzfather/jsdSkillHub.git
+cd jsdSkillHub
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，填入 QWEN_API_KEY（必需）和 JWT_SECRET_KEY（生产环境必改）
+
+# 3. 启动所有服务
+docker compose up -d
+
+# 4. 等待服务就绪（首次启动需等待 ClamAV 病毒库下载，约 1-3 分钟）
+docker compose ps
+
+# 5. 后端自动运行数据库迁移，访问前端
+curl http://localhost:8000/docs   # API 文档
 ```
 
-### 2. 启动后端
+> **注意**：前端暂未容器化，Docker Compose 仅启动后端及基础设施。前端需单独部署（见下方方式二）。
+>
+> 默认账号：`admin` / `admin123`
+
+### 方式二：本地开发
+
+适用于开发调试，前后端在本地运行，基础设施用 Docker。
 
 ```bash
+# 1. 克隆仓库
+git clone https://github.com/wzzfather/jsdSkillHub.git
+cd jsdSkillHub
+
+# 2. 启动基础设施（PostgreSQL + MinIO + OpenSearch + ClamAV）
+docker compose up -d postgres minio opensearch clamav
+
+# 3. 配置后端
 cd backend
+cp ../.env.example ../.env
+# 编辑 .env：DATABASE_URL 改为 localhost，MINIO_ENDPOINT_URL 改为 localhost 等
 pip install -r requirements.txt
-cp .env.example .env  # 编辑数据库和 MinIO 配置
 alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-### 3. 启动前端
-
-```bash
+# 4. 配置前端（新终端）
 cd frontend
 npm install
 npm run dev
@@ -123,7 +152,61 @@ npm run dev
 
 访问 `http://localhost:5173` 即可使用。
 
-默认管理员账号：`admin` / `admin123`
+### 方式三：生产部署
+
+前端构建为静态文件，由 Nginx 托管；后端和基础设施全部容器化。
+
+```bash
+# 1. 基础设施 + 后端
+docker compose up -d
+
+# 2. 构建前端
+cd frontend
+npm install
+npm run build   # 输出到 dist/
+
+# 3. Nginx 配置示例
+# 将 dist/ 目录部署到 Nginx，配置 API 反向代理：
+```
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    root /path/to/frontend/dist;
+    index index.html;
+
+    # Vue Router history 模式
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 反向代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### 环境变量说明
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `POSTGRES_USER` | PostgreSQL 用户名 | `appstore` |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码 | `appstore` |
+| `POSTGRES_DB` | PostgreSQL 数据库名 | `appstore` |
+| `MINIO_ROOT_USER` | MinIO 管理员用户名 | `minioadmin` |
+| `MINIO_ROOT_PASSWORD` | MinIO 管理员密码 | `minioadmin` |
+| `MINIO_BUCKET` | MinIO 存储桶名 | `app-store` |
+| `QWEN_API_KEY` | 通义千问 API Key | *(必填)* |
+| `QWEN_MODEL` | LLM 模型名称 | `qwen-turbo` |
+| `JWT_SECRET_KEY` | JWT 签名密钥 | `change-me-in-production` |
+| `DEBUG` | 调试模式 | `false` |
 
 ## 📁 项目结构
 

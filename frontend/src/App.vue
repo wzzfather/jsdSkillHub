@@ -82,16 +82,7 @@ onMounted(() => {
       <div class="header-left">
         <div class="app-brand" role="button" tabindex="0" @click="goBrand" @keydown.enter.prevent="goBrand">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M16 4l11 6.5v13L16 30 5 23.5v-13L16 4z"
-                stroke="currentColor"
-                stroke-width="1.5"
-                fill="currentColor"
-                fill-opacity="0.06"
-              />
-              <path d="M16 9l7 4v10l-7 4-7-4V13l7-4z" fill="currentColor" fill-opacity="0.12" />
-            </svg>
+            <i class="fa-solid fa-hexagon"></i>
           </span>
           <span class="brand-title">Skill Store</span>
         </div>
@@ -101,7 +92,7 @@ onMounted(() => {
             {{ t("nav.explore") }}
           </button>
           <button type="button" class="plain-nav" :class="navClass('docs')" @click="router.push({ name: 'docs' })">
-            📖 {{ t("nav.docs") }}
+            <i class="fa-solid fa-book" style="margin-right:4px"></i>{{ t("nav.docs") }}
           </button>
 
           <template v-if="isAuthed">
@@ -218,6 +209,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   color: var(--app-primary);
+  font-size: 22px;
 }
 
 .brand-title {
