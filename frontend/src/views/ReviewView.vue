@@ -9,6 +9,9 @@ import {
   rejectSkill as rejectSkillApi,
 } from "@/api/reviews";
 import type { ReviewPendingItem, ScanLayer } from "@/api/types";
+import { useLocale } from "@/locales";
+
+const { t } = useLocale();
 
 const loading = ref(false);
 const forbidden = ref(false);
@@ -27,7 +30,7 @@ const comment = ref("");
 const pendingCount = computed(() => rows.value.length);
 
 function formatTime(iso?: string | null) {
-  if (!iso) return "—";
+  if (!iso) return t("common.emDash");
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
@@ -43,11 +46,11 @@ function scanCellState(scans: ScanLayer[], type: "semgrep" | "clamav" | "llm") {
   return s.passed ? ("ok" as const) : ("bad" as const);
 }
 
-function scanLabel(t: string) {
-  if (t === "semgrep") return "Semgrep 静态扫描";
-  if (t === "clamav") return "ClamAV 恶意文件扫描";
-  if (t === "llm") return "LLM 语义分析";
-  return t;
+function scanLabel(scanType: string) {
+  if (scanType === "semgrep") return t("review.scanType.semgrep");
+  if (scanType === "clamav") return t("review.scanType.clamav");
+  if (scanType === "llm") return t("review.scanType.llm");
+  return scanType;
 }
 
 function sortedScans(scans: ScanLayer[]) {
@@ -62,17 +65,17 @@ function findingsPreview(result: ScanLayer["result"]): unknown {
   return result;
 }
 
-function layerAccent(t: string) {
-  if (t === "semgrep") return "accent-semgrep";
-  if (t === "clamav") return "accent-clamav";
+function layerAccent(layerKey: string) {
+  if (layerKey === "semgrep") return "accent-semgrep";
+  if (layerKey === "clamav") return "accent-clamav";
   return "accent-llm";
 }
 
 function sourceLabel(src?: string | null) {
-  if (src === "new_upload") return "新上传";
-  if (src === "resubmit") return "重新提交";
-  if (src === "republish") return "重新上架";
-  return "—";
+  if (src === "new_upload") return t("review.source.newUpload");
+  if (src === "resubmit") return t("review.source.resubmit");
+  if (src === "republish") return t("review.source.republish");
+  return t("common.emDash");
 }
 
 function sourceTagType(src?: string | null): "info" | "warning" | "success" {
@@ -97,7 +100,7 @@ async function reload() {
     sourceStats.new_upload = 0;
     sourceStats.resubmit = 0;
     sourceStats.republish = 0;
-    ElMessage.error("加载审批列表失败");
+    ElMessage.error(t("review.loadFail"));
   } finally {
     loading.value = false;
   }
@@ -116,13 +119,13 @@ function onRowClick(row: ReviewPendingItem) {
 async function approve() {
   if (!current.value) return;
   try {
-    await ElMessageBox.confirm("确认通过并上架该 Skill？", "审批确认", {
+    await ElMessageBox.confirm(t("review.approve.confirm"), t("review.approve.title"), {
       type: "warning",
-      confirmButtonText: "通过",
-      cancelButtonText: "取消",
+      confirmButtonText: t("review.btn.approve"),
+      cancelButtonText: t("review.btn.cancel"),
     });
     await approveSkillApi(current.value.skill.id, comment.value.trim() || undefined);
-    ElMessage.success("已通过");
+    ElMessage.success(t("review.approve.success"));
     drawer.value = false;
     await reload();
   } catch {
@@ -133,13 +136,13 @@ async function approve() {
 async function reject() {
   if (!current.value) return;
   try {
-    await ElMessageBox.confirm("确认驳回该 Skill？", "驳回确认", {
+    await ElMessageBox.confirm(t("review.reject.confirm"), t("review.reject.title"), {
       type: "warning",
-      confirmButtonText: "驳回",
-      cancelButtonText: "取消",
+      confirmButtonText: t("review.btn.reject"),
+      cancelButtonText: t("review.btn.cancel"),
     });
     await rejectSkillApi(current.value.skill.id, comment.value.trim() || undefined);
-    ElMessage.success("已驳回");
+    ElMessage.success(t("review.reject.success"));
     drawer.value = false;
     await reload();
   } catch {
@@ -154,37 +157,43 @@ onMounted(() => void reload());
   <div class="review-page">
     <header class="page-head">
       <div class="head-copy">
-        <h2 class="page-heading">审批工作台</h2>
-        <p class="muted page-lead">管理员查看三层扫描结果并做出人工决策。</p>
+        <h2 class="page-heading">{{ t("review.title") }}</h2>
+        <p class="muted page-lead">{{ t("review.lead") }}</p>
       </div>
-      <el-button type="primary" plain class="reload" @click="reload">刷新</el-button>
+      <el-button type="primary" plain class="reload" @click="reload">{{ t("review.refresh") }}</el-button>
     </header>
 
-    <el-alert v-if="forbidden" type="warning" show-icon title="需要管理员权限" description="请使用管理员账号登录后再访问。" />
+    <el-alert
+      v-if="forbidden"
+      type="warning"
+      show-icon
+      :title="t('review.warn.noAdmin')"
+      :description="t('review.warn.noAdminDesc')"
+    />
 
     <el-row v-else class="stats" :gutter="16">
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="never" class="stat-card">
           <div class="stat-kpi">{{ pendingCount }}</div>
-          <div class="stat-label muted">待审批（当前队列）</div>
+          <div class="stat-label muted">{{ t("review.stat.pendingQueue") }}</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="never" class="stat-card stat-card-muted">
           <div class="stat-kpi">{{ sourceStats.new_upload }}</div>
-          <div class="stat-label muted">新上传</div>
+          <div class="stat-label muted">{{ t("review.stat.newUpload") }}</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="never" class="stat-card stat-card-muted">
           <div class="stat-kpi">{{ sourceStats.resubmit }}</div>
-          <div class="stat-label muted">重新提交</div>
+          <div class="stat-label muted">{{ t("review.stat.resubmit") }}</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :lg="6">
         <el-card shadow="never" class="stat-card stat-card-muted">
           <div class="stat-kpi">{{ sourceStats.republish }}</div>
-          <div class="stat-label muted">重新上架</div>
+          <div class="stat-label muted">{{ t("review.stat.republish") }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -198,86 +207,88 @@ onMounted(() => void reload());
         style="width: 100%"
         @row-click="onRowClick"
       >
-        <el-table-column label="名称" min-width="180">
+        <el-table-column :label="t('review.col.name')" min-width="180">
           <template #default="{ row }">{{ row.skill.name }}</template>
         </el-table-column>
-        <el-table-column label="版本" width="110">
+        <el-table-column :label="t('review.col.version')" width="110">
           <template #default="{ row }">{{ row.skill.version }}</template>
         </el-table-column>
-        <el-table-column label="分类" width="120">
-          <template #default="{ row }">{{ row.skill.category || "—" }}</template>
+        <el-table-column :label="t('review.col.category')" width="120">
+          <template #default="{ row }">{{ row.skill.category || t("common.emDash") }}</template>
         </el-table-column>
-        <el-table-column label="来源" width="120">
+        <el-table-column :label="t('review.col.source')" width="120">
           <template #default="{ row }">
             <el-tag v-if="row.source" size="small" :type="sourceTagType(row.source)">{{ sourceLabel(row.source) }}</el-tag>
-            <span v-else class="muted">—</span>
+            <span v-else class="muted">{{ t("common.emDash") }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="提交者" width="120" show-overflow-tooltip>
+        <el-table-column :label="t('review.col.submitter')" width="120" show-overflow-tooltip>
           <template #default="{ row }">
-            <span class="muted">{{ row.author_username || "—" }}</span>
+            <span class="muted">{{ row.author_username || t("common.emDash") }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="扫描摘要" min-width="220">
+        <el-table-column :label="t('review.col.scanSummary')" min-width="220">
           <template #default="{ row }">
             <div class="icons">
               <span class="ico" title="Semgrep">
                 <el-icon v-if="scanCellState(row.scans, 'semgrep') === 'ok'" class="ok"><CircleCheck /></el-icon>
                 <el-icon v-else-if="scanCellState(row.scans, 'semgrep') === 'bad'" class="bad"><CircleClose /></el-icon>
-                <span v-else class="muted tiny">—</span>
+                <span v-else class="muted tiny">{{ t("common.emDash") }}</span>
               </span>
               <span class="ico" title="ClamAV">
                 <el-icon v-if="scanCellState(row.scans, 'clamav') === 'ok'" class="ok"><CircleCheck /></el-icon>
                 <el-icon v-else-if="scanCellState(row.scans, 'clamav') === 'bad'" class="bad"><CircleClose /></el-icon>
-                <span v-else class="muted tiny">—</span>
+                <span v-else class="muted tiny">{{ t("common.emDash") }}</span>
               </span>
               <span class="ico" title="LLM">
                 <el-icon v-if="scanCellState(row.scans, 'llm') === 'ok'" class="ok"><CircleCheck /></el-icon>
                 <el-icon v-else-if="scanCellState(row.scans, 'llm') === 'bad'" class="bad"><CircleClose /></el-icon>
-                <span v-else class="muted tiny">—</span>
+                <span v-else class="muted tiny">{{ t("common.emDash") }}</span>
               </span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="提交时间" min-width="170">
+        <el-table-column :label="t('review.col.submitTime')" min-width="170">
           <template #default="{ row }">
             <span class="muted">{{ formatTime(row.skill.created_at) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column :label="t('review.col.action')" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click.stop="openDetail(row)">打开</el-button>
+            <el-button link type="primary" @click.stop="openDetail(row)">{{ t("review.action.open") }}</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-drawer v-model="drawer" size="560px" direction="rtl" title="审批详情" class="review-drawer">
+    <el-drawer v-model="drawer" size="560px" direction="rtl" :title="t('review.drawer.title')" class="review-drawer">
       <template v-if="current">
         <div class="detail-head">
           <div class="detail-title">{{ current.skill.name }}</div>
-          <div class="muted detail-sub">v{{ current.skill.version }} · {{ current.skill.category || "未分类" }}</div>
+          <div class="muted detail-sub">
+            v{{ current.skill.version }} · {{ current.skill.category || t("review.drawer.uncategorized") }}
+          </div>
           <div class="detail-meta">
             <el-tag v-if="current.source" size="small" :type="sourceTagType(current.source)">{{ sourceLabel(current.source) }}</el-tag>
-            <span class="detail-author muted">提交者：{{ current.author_username || "—" }}</span>
+            <span class="detail-author muted">{{ t("review.drawer.submitter") }}{{ current.author_username || t("common.emDash") }}</span>
           </div>
         </div>
 
         <div v-for="s in sortedScans(current.scans)" :key="s.scan_type" class="scan-layer-card card-panel" :class="layerAccent(s.scan_type)">
           <div class="layer-head">
             <div>{{ scanLabel(s.scan_type) }}</div>
-            <el-tag :type="s.passed ? 'success' : 'danger'" effect="dark">{{ s.passed ? "通过" : "不通过" }}</el-tag>
+            <el-tag :type="s.passed ? 'success' : 'danger'" effect="dark">{{ s.passed ? t("status.passed") : t("status.notPassed") }}</el-tag>
           </div>
-          <div class="sub muted">告警详情（findings）</div>
+          <div class="sub muted">{{ t("review.findings") }}</div>
           <pre class="json">{{ JSON.stringify(findingsPreview(s.result), null, 2) }}</pre>
         </div>
 
         <div class="foot card-panel">
-          <div class="sub">备注（可选）</div>
-          <el-input v-model="comment" type="textarea" :rows="4" placeholder="审批意见将会记录在后端审计信息中（若接口支持）" />
+          <div class="sub">{{ t("review.notes") }}</div>
+          <el-input v-model="comment" type="textarea" :rows="4" :placeholder="t('review.notesPlaceholder')" />
           <div class="actions">
-            <el-button type="success" @click="approve">通过</el-button>
-            <el-button type="danger" plain @click="reject">驳回</el-button>
+            <el-button type="success" @click="approve">{{ t("review.btn.approve") }}</el-button>
+            <el-button type="danger" plain @click="reject">{{ t("review.btn.reject") }}</el-button>
           </div>
         </div>
       </template>

@@ -100,6 +100,9 @@ onMounted(() => {
           <button type="button" class="plain-nav" :class="navClass(['explore', 'skill-detail'])" @click="router.push({ name: 'explore' })">
             {{ t("nav.explore") }}
           </button>
+          <button type="button" class="plain-nav" :class="navClass('docs')" @click="router.push({ name: 'docs' })">
+            📖 {{ t("nav.docs") }}
+          </button>
 
           <template v-if="isAuthed">
             <button type="button" class="plain-nav" :class="navClass('submit')" @click="router.push({ name: 'submit' })">{{ t("nav.submit") }}</button>

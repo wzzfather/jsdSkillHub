@@ -45,12 +45,12 @@ const approvingId = ref<string | null>(null);
 const rejectingId = ref<string | null>(null);
 
 const statusTabs = computed(() => [
-  { key: "" as "", label: t("admin.tabAll") },
-  { key: "scanning", label: t("skillStatus.scanning") },
-  { key: "pending_review", label: t("skillStatus.pending_review_admin") },
-  { key: "published", label: t("skillStatus.published") },
-  { key: "offline", label: t("skillStatus.offline") },
-  { key: "rejected", label: t("skillStatus.rejected") },
+  { key: "" as const, label: t("admin.tabAll") },
+  { key: "scanning" as const, label: t("skillStatus.scanning") },
+  { key: "pending_review" as const, label: t("skillStatus.pending_review_admin") },
+  { key: "published" as const, label: t("skillStatus.published") },
+  { key: "offline" as const, label: t("skillStatus.offline") },
+  { key: "rejected" as const, label: t("skillStatus.rejected") },
 ]);
 
 async function loadCategories() {
@@ -294,40 +294,40 @@ watch(
       {{ t("admin.workflowBody") }}
     </p>
 
-    <div v-if="forbidden" class="muted">无权访问此页面。</div>
-    <div v-else-if="loading" class="muted loading">加载中…</div>
+    <div v-if="forbidden" class="muted">{{ t("admin.forbidden") }}</div>
+    <div v-else-if="loading" class="muted loading">{{ t("common.loading") }}</div>
     <el-card v-else class="table-card" shadow="never">
       <el-table :data="rows" stripe class="apps-table" style="width: 100%">
-        <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="version" label="版本" width="100" />
-        <el-table-column label="作者" min-width="120" show-overflow-tooltip>
+        <el-table-column prop="name" :label="t('admin.col.name')" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="version" :label="t('admin.col.version')" width="100" />
+        <el-table-column :label="t('admin.col.author')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             {{ authorCell(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="120">
+        <el-table-column :label="t('admin.col.status')" width="120">
           <template #default="{ row }">
             <el-tag size="small" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="分类" width="130" show-overflow-tooltip>
+        <el-table-column :label="t('admin.col.category')" width="130" show-overflow-tooltip>
           <template #default="{ row }">
             {{ categoryCell(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" min-width="160">
+        <el-table-column :label="t('admin.col.created')" min-width="160">
           <template #default="{ row }">
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column :label="t('admin.col.action')" width="260" fixed="right">
           <template #default="{ row }">
-            <!-- 已上架：下架 -->
+            <!-- published -->
             <template v-if="row.status === 'published'">
-              <el-button type="danger" size="small" plain @click="openOffline(row)">下架</el-button>
-              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
+              <el-button type="danger" size="small" plain @click="openOffline(row)">{{ t("admin.action.offline") }}</el-button>
+              <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
-            <!-- 待审核：快捷审批 -->
+            <!-- pending -->
             <template v-else-if="row.status === 'pending_review'">
               <el-button
                 type="success"
@@ -336,7 +336,7 @@ watch(
                 :loading="approvingId === row.id"
                 @click="onQuickApprove(row)"
               >
-                通过
+                {{ t("admin.action.approve") }}
               </el-button>
               <el-button
                 type="danger"
@@ -345,22 +345,18 @@ watch(
                 :loading="rejectingId === row.id"
                 @click="openReject(row)"
               >
-                驳回
+                {{ t("admin.action.reject") }}
               </el-button>
-              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
+              <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
-            <!-- 已下架：重新上架 -->
+            <!-- offline -->
             <template v-else-if="row.status === 'offline'">
-              <el-button type="success" size="small" plain @click="onRepublish(row)">重新上架</el-button>
-              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
+              <el-button type="success" size="small" plain @click="onRepublish(row)">{{ t("admin.action.republish") }}</el-button>
+              <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
-            <!-- 已驳回：查看 -->
-            <template v-else-if="row.status === 'rejected'">
-              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
-            </template>
-            <!-- 扫描中：查看 -->
+            <!-- rejected / scanning / other -->
             <template v-else>
-              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
+              <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
           </template>
         </el-table-column>
@@ -378,22 +374,22 @@ watch(
     </el-card>
 
     <!-- 下架对话框 -->
-    <el-dialog v-model="offlineVisible" title="下架应用" width="520px" destroy-on-close align-center append-to-body>
-      <p class="muted dialog-hint">请填写下架原因，提交后将立即变为已下架。</p>
-      <el-input v-model="offlineReason" type="textarea" :rows="4" placeholder="下架原因…" maxlength="2000" show-word-limit />
+    <el-dialog v-model="offlineVisible" :title="t('admin.dialog.offlineTitle')" width="520px" destroy-on-close align-center append-to-body>
+      <p class="muted dialog-hint">{{ t("admin.dialog.offlineHint") }}</p>
+      <el-input v-model="offlineReason" type="textarea" :rows="4" :placeholder="t('admin.dialog.offlinePlaceholder')" maxlength="2000" show-word-limit />
       <template #footer>
-        <el-button @click="offlineVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmOffline">确认下架</el-button>
+        <el-button @click="offlineVisible = false">{{ t("admin.dialog.cancel") }}</el-button>
+        <el-button type="danger" @click="confirmOffline">{{ t("admin.dialog.offlineConfirm") }}</el-button>
       </template>
     </el-dialog>
 
     <!-- 驳回对话框 -->
-    <el-dialog v-model="rejectVisible" title="驳回技能" width="520px" destroy-on-close align-center append-to-body>
-      <p class="muted dialog-hint">请填写驳回原因，提交后技能将变为已驳回状态。</p>
-      <el-input v-model="rejectReason" type="textarea" :rows="4" placeholder="驳回原因…" maxlength="2000" show-word-limit />
+    <el-dialog v-model="rejectVisible" :title="t('admin.dialog.rejectTitle')" width="520px" destroy-on-close align-center append-to-body>
+      <p class="muted dialog-hint">{{ t("admin.dialog.rejectHint") }}</p>
+      <el-input v-model="rejectReason" type="textarea" :rows="4" :placeholder="t('admin.dialog.rejectPlaceholder')" maxlength="2000" show-word-limit />
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmReject">确认驳回</el-button>
+        <el-button @click="rejectVisible = false">{{ t("admin.dialog.cancel") }}</el-button>
+        <el-button type="danger" @click="confirmReject">{{ t("admin.dialog.rejectConfirm") }}</el-button>
       </template>
     </el-dialog>
   </div>

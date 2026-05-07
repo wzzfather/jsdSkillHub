@@ -54,6 +54,19 @@ function scanState(skill: SkillDetail | null | undefined, type: "semgrep" | "cla
   return "idle" as const;
 }
 
+function pipeStatusLabel(code: string) {
+  const map: Record<string, string> = {
+    scanning: "skillStatus.scanning",
+    pending_review: "skillStatus.pending_review",
+    published: "skillStatus.published",
+    rejected: "skillStatus.rejected",
+    offline: "skillStatus.offline",
+    draft: "skillStatus.draft",
+  };
+  const key = map[code];
+  return key ? t(key) : code;
+}
+
 async function pollOnce(id: string) {
   const { data } = await fetchSkillDetail(id);
   pollSkill.value = data;
@@ -186,7 +199,7 @@ onUnmounted(() => stopPoll());
       <div v-if="pollSkill" class="status">
         <div class="status-row">
           <span class="muted">{{ t("submit.statusPrefix") }}</span>
-          <el-tag effect="light" type="info">{{ pollSkill.status }}</el-tag>
+          <el-tag effect="light" type="info">{{ pipeStatusLabel(pollSkill.status) }}</el-tag>
         </div>
 
         <div class="scan-grid">
