@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { fetchSkills } from "@/api/skills";
+import { fetchWorkflowOverview } from "@/api/workflow";
 import type { WorkflowOverview } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
 import { useLocale } from "@/locales";
@@ -23,23 +23,8 @@ const overview = ref<WorkflowOverview>({
 async function load() {
   loading.value = true;
   try {
-    const [scanning, pending_review, published, rejected] = await Promise.all([
-      fetchSkills({ status: "scanning", page: 1, page_size: 1 }),
-      fetchSkills({ status: "pending_review", page: 1, page_size: 1 }),
-      fetchSkills({ status: "published", page: 1, page_size: 1 }),
-      fetchSkills({ status: "rejected", page: 1, page_size: 1 }),
-    ]);
-    overview.value = {
-      total:
-        scanning.data.total +
-        pending_review.data.total +
-        published.data.total +
-        rejected.data.total,
-      scanning: scanning.data.total,
-      pending_review: pending_review.data.total,
-      published: published.data.total,
-      rejected: rejected.data.total,
-    };
+    const { data } = await fetchWorkflowOverview();
+    overview.value = data;
   } catch {
     ElMessage.error(t("dashboard.errLoad"));
   } finally {
