@@ -30,3 +30,17 @@ Thumbs.db
 
 # Database
 *.db
+
+# Internal dev files (not for public repo)
+AGENTS.md
+AGENT-ARCHITECTURE.md
+CLAUDE.md
+BUGS.md
+PROGRESS.md
+TEAM-MANUAL.md
+INTERN-DEV-CHECKLIST.md
+DOC-LIFECYCLE.md
+memory/
+reference/
+.cursor/
+demands/

@@ -23,16 +23,59 @@
 
 ## 📸 页面预览
 
-| 页面 | 说明 |
-|------|------|
-| 应用市场 | 浏览、搜索、分类筛选、排序 |
-| 登录 / 注册 | 用户名 + 邮箱双模式，邮箱验证码 |
-| 提交应用 | 两步流程：基础信息 → 上传 ZIP + 实时扫描 |
-| 看板 | KPI 统计总览 |
-| 我的应用 | 开发者 Skill 管理 |
-| 审批工作台 | 三层扫描结果 + 来源区分 |
-| 管理员应用管理 | 搜索 + 筛选 + 快捷审批 |
-| Skill 详情 | 扫描摘要 + 安装/下载 + 工作流可视化 |
+### 应用市场
+浏览、搜索、分类筛选、作者筛选、热门排序
+<p align="center">
+  <img src="screenshots/01_explore.png" alt="应用市场" width="800">
+</p>
+
+### 登录 / 注册
+用户名 + 邮箱双模式，邮箱验证码
+<p align="center">
+  <img src="screenshots/02_login.png" alt="登录" width="400">&nbsp;&nbsp;
+  <img src="screenshots/03_register.png" alt="注册" width="400">
+</p>
+
+### 邮箱验证
+<p align="center">
+  <img src="screenshots/04_verify_email.png" alt="邮箱验证" width="400">
+</p>
+
+### 提交应用
+两步流程：基础信息 → 上传 ZIP + 实时扫描进度
+<p align="center">
+  <img src="screenshots/05_submit.png" alt="提交应用" width="400">
+</p>
+
+### 看板 Dashboard
+KPI 统计总览
+<p align="center">
+  <img src="screenshots/06_dashboard.png" alt="看板" width="400">
+</p>
+
+### 我的应用
+开发者 Skill 管理，状态流程条，驳回后可重新提交
+<p align="center">
+  <img src="screenshots/07_my_apps.png" alt="我的应用" width="800">
+</p>
+
+### 审批工作台
+三层扫描结果 + 来源区分（新上传/重新提交/重新上架）
+<p align="center">
+  <img src="screenshots/08_review.png" alt="审批工作台" width="800">
+</p>
+
+### 管理员应用管理
+搜索 + 分类筛选 + 作者筛选 + 快捷审批
+<p align="center">
+  <img src="screenshots/09_admin_apps.png" alt="管理员应用管理" width="800">
+</p>
+
+### Skill 详情
+扫描摘要 + 安装/下载 + 工作流可视化
+<p align="center">
+  <img src="screenshots/10_skill_detail.png" alt="Skill详情" width="800">
+</p>
 
 ## 🏗️ 技术栈
 
@@ -104,6 +147,7 @@ npm run dev
 │   ├── tester/        # 测试 Skill
 │   └── ui-design/     # UI 设计 Skill
 ├── core/              # 项目文档（MRD/PRD/TRD/RFC）
+├── screenshots/       # 页面截图
 └── docker-compose.yml
 ```
 
