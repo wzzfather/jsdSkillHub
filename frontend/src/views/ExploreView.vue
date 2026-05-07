@@ -5,8 +5,10 @@ import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { fetchSkills, fetchSkillCategories } from "@/api/skills";
 import type { Skill } from "@/api/types";
+import { useLocale } from "@/locales";
 
 const router = useRouter();
+const { t } = useLocale();
 
 const loading = ref(false);
 const items = ref<Skill[]>([]);
@@ -46,12 +48,12 @@ onMounted(() => {
 });
 
 function skillCategoryLabel(skill: Skill) {
-  return skill.category && skill.category.trim() ? skill.category : "—";
+  return skill.category && skill.category.trim() ? skill.category : t("common.emDash");
 }
 
 function authorLabel(skill: Skill) {
   const id = skill.author_id;
-  if (!id) return "—";
+  if (!id) return t("common.emDash");
   return id.length <= 12 ? id : `…${id.slice(-10)}`;
 }
 
@@ -82,7 +84,7 @@ async function loadPage() {
     items.value = data.items;
     total.value = data.total;
   } catch {
-    ElMessage.error("加载市场列表失败");
+    ElMessage.error(t("explore.errLoad"));
   } finally {
     loading.value = false;
   }
@@ -126,18 +128,8 @@ function goDetail(s: Skill) {
   router.push({ name: "skill-detail", params: { id: s.id } });
 }
 
-function text(key: string) {
-  const map: Record<string, string> = {
-    headline: "发现 AI 技能",
-    sub: "浏览已上架的技能，搜索并安装到你的工作流",
-    searchPh: "搜索技能名称或简介…",
-    authorPh: "按作者筛选…",
-    empty: "暂无符合条件的 Skill",
-    category: "分类",
-    author: "作者",
-    sort: "排序",
-  };
-  return map[key] ?? key;
+function heroStat(): string {
+  return t("explore.publishedStat").replace("{n}", String(total.value));
 }
 </script>
 
@@ -146,16 +138,16 @@ function text(key: string) {
     <header class="hero">
       <div class="hero-top">
         <div class="hero-copy">
-          <h1 class="hero-title">{{ text("headline") }}</h1>
-          <p class="hero-sub">{{ text("sub") }}</p>
+          <h1 class="hero-title">{{ t("explore.heroTitle") }}</h1>
+          <p class="hero-sub">{{ t("explore.heroSub") }}</p>
         </div>
         <el-tag v-if="!loading && total >= 0" class="hero-stat" type="info" effect="light" round>
-          已上架 {{ total }} 个技能
+          {{ heroStat() }}
         </el-tag>
       </div>
 
       <div class="search-wrap">
-        <el-input v-model="query" class="search-input" clearable size="large" :placeholder="text('searchPh')">
+        <el-input v-model="query" class="search-input" clearable size="large" :placeholder="t('explore.searchPh')">
           <template #prefix>
             <el-icon class="search-ico"><Search /></el-icon>
           </template>
@@ -164,38 +156,38 @@ function text(key: string) {
 
       <div class="filters">
         <div class="filter-block">
-          <span class="filter-label">{{ text("category") }}</span>
+          <span class="filter-label">{{ t("explore.category") }}</span>
           <el-radio-group v-model="categoryFilter" class="cat-radio-group" size="large">
-            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="">{{ t("common.all") }}</el-radio-button>
             <el-radio-button v-for="cat in dynamicCategories" :key="cat" :label="cat">
               {{ cat }}
             </el-radio-button>
           </el-radio-group>
         </div>
         <div class="filter-block">
-          <span class="filter-label">{{ text("author") }}</span>
+          <span class="filter-label">{{ t("explore.author") }}</span>
           <el-input
             v-model="authorFilter"
             class="author-input"
             clearable
             size="large"
-            :placeholder="text('authorPh')"
+            :placeholder="t('explore.authorPh')"
           />
         </div>
         <div class="filter-block sort-block">
-          <span class="filter-label">{{ text("sort") }}</span>
-          <el-select v-model="sortBy" class="sort-select" placeholder="排序">
-            <el-option label="最新上架" value="newest" />
-            <el-option label="名称排序" value="name" />
-            <el-option label="热门优先" value="install_count" />
+          <span class="filter-label">{{ t("explore.sort") }}</span>
+          <el-select v-model="sortBy" class="sort-select" :placeholder="t('explore.sortPh')">
+            <el-option :label="t('explore.sortNewest')" value="newest" />
+            <el-option :label="t('explore.sortName')" value="name" />
+            <el-option :label="t('explore.sortHot')" value="install_count" />
           </el-select>
         </div>
       </div>
     </header>
 
-    <div v-if="loading" class="muted loading">加载中…</div>
+    <div v-if="loading" class="muted loading">{{ t("common.loading") }}</div>
 
-    <el-empty v-else-if="items.length === 0" :description="text('empty')" />
+    <el-empty v-else-if="items.length === 0" :description="t('explore.empty')" />
 
     <el-row v-else :gutter="20" class="grid">
       <el-col v-for="s in items" :key="s.id" :xs="24" :sm="12" :md="8" :lg="6">
@@ -221,8 +213,8 @@ function text(key: string) {
               <el-tag size="small" effect="plain" type="info">v{{ s.version }}</el-tag>
               <el-tag size="small" effect="light" type="info">{{ skillCategoryLabel(s) }}</el-tag>
             </div>
-            <p class="desc line-clamp-2">{{ s.description || "（无简介）" }}</p>
-            <div class="foot muted">作者：{{ authorLabel(s) }}</div>
+            <p class="desc line-clamp-2">{{ s.description || t("explore.noDesc") }}</p>
+            <div class="foot muted">{{ t("explore.authorPrefix") }}{{ authorLabel(s) }}</div>
           </div>
         </div>
       </el-col>

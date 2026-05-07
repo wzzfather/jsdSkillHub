@@ -4,10 +4,12 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { sendCode, verifyEmail } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
+import { useLocale } from "@/locales";
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const { t } = useLocale();
 
 const email = ref("");
 const code = ref("");
@@ -24,7 +26,7 @@ watch(
 
 async function requestCode() {
   if (!email.value.trim()) {
-    ElMessage.warning("缺少邮箱参数，请从注册页进入");
+    ElMessage.warning(t("verify.warnNoEmail"));
     return;
   }
   loadingSend.value = true;
@@ -32,9 +34,9 @@ async function requestCode() {
     const { data } = await sendCode(email.value.trim());
     // MVP：后端已在响应中返回验证码；生产接入 SMTP 后删除下行
     console.log("[MVP] 模拟收件箱：邮箱验证码 =", data.code, "（后续接 SMTP 后勿在控制台输出）");
-    ElMessage.success("验证码已生成（MVP：请打开浏览器控制台查看模拟邮件）");
+    ElMessage.success(t("verify.okCode"));
   } catch {
-    ElMessage.error("发送验证码失败");
+    ElMessage.error(t("verify.errSend"));
   } finally {
     loadingSend.value = false;
   }
@@ -43,7 +45,7 @@ async function requestCode() {
 async function onVerify() {
   const c = code.value.replace(/\D/g, "").slice(0, 6);
   if (c.length !== 6) {
-    ElMessage.warning("请输入 6 位数字验证码");
+    ElMessage.warning(t("verify.warnCodeLen"));
     return;
   }
   loadingVerify.value = true;
@@ -51,10 +53,10 @@ async function onVerify() {
     const { data } = await verifyEmail(email.value.trim(), c);
     auth.setToken(data.access_token);
     await auth.ensureAdmin();
-    ElMessage.success("验证成功");
+    ElMessage.success(t("verify.ok"));
     await router.replace("/dashboard");
   } catch {
-    ElMessage.error("验证失败，请检查验证码");
+    ElMessage.error(t("verify.fail"));
   } finally {
     loadingVerify.value = false;
   }
@@ -82,19 +84,17 @@ onMounted(() => {
           </svg>
         </span>
         <div class="brand-name">Skill Store</div>
-        <div class="brand-sub">企业级 AI Agent 应用商店</div>
+        <div class="brand-sub">{{ t("common.brandSub") }}</div>
       </div>
 
-      <h1 class="title">验证邮箱</h1>
-      <p class="muted subtitle">
-        MVP 模式：验证码由接口直接返回并在浏览器控制台打印；后续将改为邮件发送。
-      </p>
+      <h1 class="title">{{ t("verify.title") }}</h1>
+      <p class="muted subtitle">{{ t("verify.subtitle") }}</p>
 
       <el-form label-position="top" class="auth-form" @submit.prevent="onVerify">
-        <el-form-item label="邮箱">
+        <el-form-item :label="t('verify.fieldEmail')">
           <el-input v-model="email" class="auth-input" type="email" autocomplete="email" />
         </el-form-item>
-        <el-form-item label="6 位验证码">
+        <el-form-item :label="t('verify.fieldCode')">
           <el-input
             v-model="code"
             class="auth-input"
@@ -106,11 +106,11 @@ onMounted(() => {
             @input="code = code.replace(/\D/g, '').slice(0, 6)"
           />
         </el-form-item>
-        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loadingVerify">验证并登录</el-button>
-        <el-button class="auth-secondary" :loading="loadingSend" @click="requestCode">重新获取验证码</el-button>
+        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loadingVerify">{{ t("verify.submit") }}</el-button>
+        <el-button class="auth-secondary" :loading="loadingSend" @click="requestCode">{{ t("verify.resend") }}</el-button>
         <div class="foot muted">
-          返回
-          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'login' })">登录</el-button>
+          {{ t("verify.backPrefix") }}
+          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'login' })">{{ t("verify.linkLogin") }}</el-button>
         </div>
       </el-form>
     </div>

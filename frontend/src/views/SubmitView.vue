@@ -7,14 +7,17 @@ import { useRouter } from "vue-router";
 import type { AxiosError } from "axios";
 import { fetchSkillDetail, uploadSkill } from "@/api/skills";
 import type { SkillDetail } from "@/api/types";
+import { useLocale } from "@/locales";
 
-const CATEGORY_OPTIONS = [
+const { t } = useLocale();
+
+const categoryOptions = computed(() => [
   { label: "productivity", value: "productivity" },
   { label: "security", value: "security" },
   { label: "support", value: "support" },
   { label: "knowledge", value: "knowledge" },
-  { label: "其他", value: "other" },
-] as const;
+  { label: t("submit.cat.other"), value: "other" },
+]);
 
 const form = reactive({
   name: "",
@@ -37,10 +40,10 @@ function stopPoll() {
   timer = undefined;
 }
 
-function layerTitle(t: string) {
-  if (t === "semgrep") return "Semgrep 静态扫描";
-  if (t === "clamav") return "ClamAV 恶意文件扫描";
-  return "LLM 语义分析";
+function scanLayerTitle(type: string) {
+  if (type === "semgrep") return t("submit.layerSemgrep");
+  if (type === "clamav") return t("submit.layerClamav");
+  return t("submit.layerLlm");
 }
 
 function scanState(skill: SkillDetail | null | undefined, type: "semgrep" | "clamav" | "llm") {
@@ -73,18 +76,18 @@ async function handleUpload(opt: UploadRequestOptions) {
     if (cat) fd.append("category", cat);
 
     const { data } = await uploadSkill(fd);
-    ElMessage.success("文件已上传，正在扫描…");
+    ElMessage.success(t("submit.msgUploaded"));
     timer = window.setInterval(() => void pollOnce(data.id), 2000);
     await pollOnce(data.id);
     step.value = 1;
   } catch (e: unknown) {
     const err = e as AxiosError<{ detail?: unknown }>;
     if (err.response?.status === 401) {
-      ElMessage.error("请先登录后再上传");
+      ElMessage.error(t("submit.errAuth"));
       await router.push({ name: "login", query: { redirect: "/submit" } });
       return;
     }
-    ElMessage.error("上传失败，请检查 zip 与网络");
+    ElMessage.error(t("submit.errUpload"));
   } finally {
     uploading.value = false;
   }
@@ -106,7 +109,7 @@ function resetUploadFlow() {
 
 function nextStep() {
   if (!form.name.trim()) {
-    ElMessage.warning("请填写名称");
+    ElMessage.warning(t("submit.warnName"));
     return;
   }
   step.value = 1;
@@ -122,13 +125,11 @@ onUnmounted(() => stopPoll());
 <template>
   <div class="submit-page">
     <header class="page-head">
-      <h2 class="page-heading">提交应用</h2>
-      <p class="muted page-lead">
-        填写元数据后在第二步上传 ZIP；系统将执行 Semgrep、ClamAV、LLM 三层扫描。
-      </p>
+      <h2 class="page-heading">{{ t("submit.title") }}</h2>
+      <p class="muted page-lead">{{ t("submit.lead") }}</p>
       <el-steps class="steps" finish-status="success" :active="step" align-center>
-        <el-step title="基础信息" description="名称 / 版本 / 分类 / 简介" />
-        <el-step title="上传与扫描" description="拖拽 zip 并观测扫描进度" />
+        <el-step :title="t('submit.step1Title')" :description="t('submit.step1Desc')" />
+        <el-step :title="t('submit.step2Title')" :description="t('submit.step2Desc')" />
       </el-steps>
     </header>
 
@@ -136,35 +137,35 @@ onUnmounted(() => stopPoll());
       <el-form label-position="top">
         <el-row :gutter="16">
           <el-col :xs="24" :md="12">
-            <el-form-item label="名称（必填）">
-              <el-input v-model="form.name" placeholder="例如：工单分类助手" />
+            <el-form-item :label="t('submit.nameLabel')">
+              <el-input v-model="form.name" :placeholder="t('submit.namePh')" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
-            <el-form-item label="版本">
+            <el-form-item :label="t('submit.versionLabel')">
               <el-input v-model="form.version" placeholder="1.0.0" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="描述">
-              <el-input v-model="form.description" type="textarea" :rows="4" placeholder="能力说明、数据来源、注意事项" />
+            <el-form-item :label="t('submit.descLabel')">
+              <el-input v-model="form.description" type="textarea" :rows="4" :placeholder="t('submit.descPh')" />
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
-            <el-form-item label="分类">
-              <el-select v-model="form.category" clearable placeholder="选择分类">
-                <el-option v-for="c in CATEGORY_OPTIONS" :key="c.value" :label="c.label" :value="c.value" />
+            <el-form-item :label="t('submit.categoryLabel')">
+              <el-select v-model="form.category" clearable :placeholder="t('submit.categoryPh')">
+                <el-option v-for="c in categoryOptions" :key="c.value" :label="c.label" :value="c.value" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-button type="primary" class="cta" size="large" @click="nextStep">下一步</el-button>
+        <el-button type="primary" class="cta" size="large" @click="nextStep">{{ t("submit.next") }}</el-button>
       </el-form>
     </div>
 
     <div v-else class="form-card card-panel">
       <div class="step-toolbar">
-        <el-button plain class="neutral" @click="prevStep">上一步</el-button>
+        <el-button plain class="neutral" @click="prevStep">{{ t("submit.prev") }}</el-button>
       </div>
 
       <el-upload
@@ -176,33 +177,33 @@ onUnmounted(() => stopPoll());
         :show-file-list="false"
       >
         <el-icon class="el-icon--upload upload-ico"><UploadFilled /></el-icon>
-        <div class="upload-title">拖拽文件到此处或点击上传</div>
+        <div class="upload-title">{{ t("submit.uploadTitle") }}</div>
         <template #tip>
-          <div class="el-upload__tip muted">仅支持 .zip；名称需在第一步填写完整。</div>
+          <div class="el-upload__tip muted">{{ t("submit.uploadTip") }}</div>
         </template>
       </el-upload>
 
       <div v-if="pollSkill" class="status">
         <div class="status-row">
-          <span class="muted">当前状态：</span>
+          <span class="muted">{{ t("submit.statusPrefix") }}</span>
           <el-tag effect="light" type="info">{{ pollSkill.status }}</el-tag>
         </div>
 
         <div class="scan-grid">
-          <div v-for="t in ['semgrep', 'clamav', 'llm'] as const" :key="t" class="scan-card" :class="`accent-${t}`">
-            <div class="scan-title">{{ layerTitle(t) }}</div>
+          <div v-for="scanKind in ['semgrep', 'clamav', 'llm'] as const" :key="scanKind" class="scan-card" :class="`accent-${scanKind}`">
+            <div class="scan-title">{{ scanLayerTitle(scanKind) }}</div>
             <div class="scan-state">
-              <template v-if="scanState(pollSkill, t) === 'loading'">
-                <el-tag effect="plain" type="info">进行中</el-tag>
+              <template v-if="scanState(pollSkill, scanKind) === 'loading'">
+                <el-tag effect="plain" type="info">{{ t("submit.scanRunning") }}</el-tag>
               </template>
-              <template v-else-if="scanState(pollSkill, t) === 'pass'">
-                <el-tag effect="dark" type="success">已完成 · 通过</el-tag>
+              <template v-else-if="scanState(pollSkill, scanKind) === 'pass'">
+                <el-tag effect="dark" type="success">{{ t("submit.scanPass") }}</el-tag>
               </template>
-              <template v-else-if="scanState(pollSkill, t) === 'fail'">
-                <el-tag effect="dark" type="danger">已完成 · 不通过</el-tag>
+              <template v-else-if="scanState(pollSkill, scanKind) === 'fail'">
+                <el-tag effect="dark" type="danger">{{ t("submit.scanFail") }}</el-tag>
               </template>
               <template v-else>
-                <el-tag effect="plain">等待</el-tag>
+                <el-tag effect="plain">{{ t("submit.scanWait") }}</el-tag>
               </template>
             </div>
           </div>
@@ -214,11 +215,11 @@ onUnmounted(() => stopPoll());
           <el-icon><CircleCheck /></el-icon>
         </div>
         <div class="queue-success-body">
-          <div class="queue-success-title">上传成功，已进入审批队列</div>
-          <p class="queue-success-desc muted">你可前往「我的应用」查看审批进度，或继续提交其他应用。</p>
+          <div class="queue-success-title">{{ t("submit.queueTitle") }}</div>
+          <p class="queue-success-desc muted">{{ t("submit.queueDesc") }}</p>
           <div class="queue-success-actions">
-            <el-button type="primary" class="act-pri" @click="gotoMyApps">查看我的应用</el-button>
-            <el-button plain class="neutral" @click="resetUploadFlow">继续上传</el-button>
+            <el-button type="primary" class="act-pri" @click="gotoMyApps">{{ t("submit.myApps") }}</el-button>
+            <el-button plain class="neutral" @click="resetUploadFlow">{{ t("submit.continue") }}</el-button>
           </div>
         </div>
       </div>

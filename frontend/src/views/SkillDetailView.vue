@@ -5,10 +5,12 @@ import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/
 import { ElMessage, ElMessageBox } from "element-plus";
 import { downloadSkill, fetchSkillDetail, installSkill, installSkillNpm } from "@/api/skills";
 import type { ScanLayer, SkillDetail } from "@/api/types";
+import { useLocale } from "@/locales";
 
 const props = defineProps<{ id: string }>();
 
 const router = useRouter();
+const { t } = useLocale();
 const loading = ref(false);
 const installingZip = ref(false);
 const installingNpm = ref(false);
@@ -19,34 +21,38 @@ const lastInstallZip = ref<{ message: string; path: string } | null>(null);
 const lastInstallNpm = ref<{ message: string; path: string; npm_installed: boolean } | null>(null);
 
 function formatTime(iso?: string | null) {
-  if (!iso) return "—";
+  if (!iso) return t("common.emDash");
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
 }
 
 function statusLabel(status: string) {
-  const m: Record<string, string> = {
-    scanning: "扫描中",
-    pending_review: "待审批",
-    published: "已上架",
-    rejected: "已驳回",
-    offline: "已下架",
-    draft: "草稿",
+  const keys: Record<string, string> = {
+    scanning: "skillStatus.scanning",
+    pending_review: "skillStatus.pending_review",
+    published: "skillStatus.published",
+    rejected: "skillStatus.rejected",
+    offline: "skillStatus.offline",
+    draft: "skillStatus.draft",
   };
-  return m[status] ?? status;
+  const k = keys[status];
+  return k ? t(k) : status;
 }
 
 /** 详情页任务流转：每步附带状态文案（已完成 / 进行中 / 待处理） */
 const detailFlow = computed(() => {
   const st = detail.value?.status ?? "";
-  const titles = ["上传", "扫描中", "待审批", "已上架"] as const;
-  type Row = { title: (typeof titles)[number]; stateLabel: string };
-  let rows: Row[] = [
-    { title: "上传", stateLabel: "待处理" },
-    { title: "扫描中", stateLabel: "待处理" },
-    { title: "待审批", stateLabel: "待处理" },
-    { title: "已上架", stateLabel: "待处理" },
+  const UP = t("flow.stepUpload");
+  const SC = t("flow.stepScan");
+  const RV = t("flow.stepReview");
+  const PB = t("flow.stepPublished");
+  const titles = [UP, SC, RV, PB] as const;
+  let rows: { title: string; stateLabel: string }[] = [
+    { title: UP, stateLabel: t("flow.statePending") },
+    { title: SC, stateLabel: t("flow.statePending") },
+    { title: RV, stateLabel: t("flow.statePending") },
+    { title: PB, stateLabel: t("flow.statePending") },
   ];
   let active = 0;
   let processStatus: "process" | "error" | "success" | "wait" | "finish" = "process";
@@ -54,41 +60,41 @@ const detailFlow = computed(() => {
 
   if (st === "scanning") {
     rows = [
-      { title: "上传", stateLabel: "已完成" },
-      { title: "扫描中", stateLabel: "进行中" },
-      { title: "待审批", stateLabel: "待处理" },
-      { title: "已上架", stateLabel: "待处理" },
+      { title: UP, stateLabel: t("flow.stateDone") },
+      { title: SC, stateLabel: t("flow.stateRunning") },
+      { title: RV, stateLabel: t("flow.statePending") },
+      { title: PB, stateLabel: t("flow.statePending") },
     ];
     active = 1;
   } else if (st === "pending_review") {
     rows = [
-      { title: "上传", stateLabel: "已完成" },
-      { title: "扫描中", stateLabel: "已完成" },
-      { title: "待审批", stateLabel: "进行中" },
-      { title: "已上架", stateLabel: "待处理" },
+      { title: UP, stateLabel: t("flow.stateDone") },
+      { title: SC, stateLabel: t("flow.stateDone") },
+      { title: RV, stateLabel: t("flow.stateRunning") },
+      { title: PB, stateLabel: t("flow.statePending") },
     ];
     active = 2;
   } else if (st === "rejected") {
     rows = [
-      { title: "上传", stateLabel: "已完成" },
-      { title: "扫描中", stateLabel: "已完成" },
-      { title: "待审批", stateLabel: "已驳回（可修改后重新提交）" },
-      { title: "已上架", stateLabel: "待处理" },
+      { title: UP, stateLabel: t("flow.stateDone") },
+      { title: SC, stateLabel: t("flow.stateDone") },
+      { title: RV, stateLabel: t("flow.stateRejectedLine") },
+      { title: PB, stateLabel: t("flow.statePending") },
     ];
     active = 2;
     processStatus = "error";
-    footnote = "当前申请未通过审批，请根据反馈意见调整后重新提交。";
+    footnote = t("flow.noteRejected");
   } else if (st === "published") {
-    rows = titles.map((t) => ({ title: t, stateLabel: "已完成" }));
+    rows = titles.map((x) => ({ title: x, stateLabel: t("flow.stateDone") }));
     active = 4;
     processStatus = "success";
   } else if (st === "offline") {
-    rows = titles.map((t) => ({ title: t, stateLabel: "已完成" }));
+    rows = titles.map((x) => ({ title: x, stateLabel: t("flow.stateDone") }));
     active = 4;
     processStatus = "success";
-    footnote = "已从市场下架，历史安装目录不受影响。";
+    footnote = t("flow.noteOffline");
   } else {
-    rows = [{ title: "上传", stateLabel: "进行中" }, ...titles.slice(1).map((t) => ({ title: t, stateLabel: "待处理" }))];
+    rows = [{ title: UP, stateLabel: t("flow.stateRunning") }, ...titles.slice(1).map((x) => ({ title: x, stateLabel: t("flow.statePending") }))];
     active = 0;
   }
 
@@ -98,16 +104,16 @@ const detailFlow = computed(() => {
 const layers = computed(() => {
   const want = ["semgrep", "clamav", "llm"];
   const list = detail.value?.scans ?? [];
-  return want.map((t) => {
-    const hit = list.find((s) => s.scan_type === t);
-    return { type: t, scan: hit as ScanLayer | undefined };
+  return want.map((scanType) => {
+    const hit = list.find((s) => s.scan_type === scanType);
+    return { type: scanType, scan: hit as ScanLayer | undefined };
   });
 });
 
-function layerTitle(t: string) {
-  if (t === "semgrep") return "Semgrep 静态扫描";
-  if (t === "clamav") return "ClamAV 恶意文件扫描";
-  return "LLM 语义分析";
+function scanLayerTitle(scanType: string) {
+  if (scanType === "semgrep") return t("detail.layerSemgrep");
+  if (scanType === "clamav") return t("detail.layerClamav");
+  return t("detail.layerLlm");
 }
 
 function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
@@ -116,9 +122,9 @@ function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
   return scan.passed ? "ok" : "bad";
 }
 
-function scanTone(t: string) {
-  if (t === "semgrep") return "tone-semgrep";
-  if (t === "clamav") return "tone-clamav";
+function scanTone(kind: string) {
+  if (kind === "semgrep") return "tone-semgrep";
+  if (kind === "clamav") return "tone-clamav";
   return "tone-llm";
 }
 
@@ -130,7 +136,7 @@ function apiErrorDetail(err: unknown): string {
     const inner = (d as { detail?: unknown }).detail;
     if (typeof inner === "string") return inner;
   }
-  return "操作失败";
+  return t("detail.errOp");
 }
 
 async function onDownloadZip() {
@@ -147,12 +153,12 @@ async function onInstallZip() {
   if (!detail.value) return;
   try {
     await ElMessageBox.confirm(
-      "将把 Skill 以压缩包解压方式安装到本机 OpenClaw 目录（已存在同名目录会先备份再覆盖）。是否继续？",
-      "安装（压缩包）",
+      t("detail.confirmZipMsg"),
+      t("detail.confirmZipTitle"),
       {
         type: "warning",
-        confirmButtonText: "安装",
-        cancelButtonText: "取消",
+        confirmButtonText: t("common.install"),
+        cancelButtonText: t("common.cancel"),
       },
     );
   } catch {
@@ -175,12 +181,12 @@ async function onInstallNpm() {
   if (!detail.value) return;
   try {
     await ElMessageBox.confirm(
-      "将下载 ZIP、解压并在包含 package.json 的目录执行 npm install --production，再把完整目录复制到 OpenClaw（已存在同名目录会先备份再覆盖）。若无 package.json 则仅复制文件；请确保已安装 Node.js/npm。是否继续？",
-      "安装（含 npm 依赖）",
+      t("detail.confirmNpmMsg"),
+      t("detail.confirmNpmTitle"),
       {
         type: "warning",
-        confirmButtonText: "安装",
-        cancelButtonText: "取消",
+        confirmButtonText: t("common.install"),
+        cancelButtonText: t("common.cancel"),
       },
     );
   } catch {
@@ -191,7 +197,7 @@ async function onInstallNpm() {
     const { data } = await installSkillNpm(detail.value.id);
     lastInstallNpm.value = { message: data.message, path: data.path, npm_installed: data.npm_installed };
     lastInstallZip.value = null;
-    const npmHint = data.npm_installed ? "（已执行 npm）" : "（未检测到 package.json，未执行 npm）";
+    const npmHint = data.npm_installed ? t("detail.npmOkSuffixRan") : t("detail.npmOkSuffixSkip");
     ElMessage.success(`${data.message}：${data.path} ${npmHint}`);
   } catch (e) {
     ElMessage.error(apiErrorDetail(e));
@@ -206,27 +212,11 @@ async function load() {
     const { data } = await fetchSkillDetail(props.id);
     detail.value = data;
   } catch {
-    ElMessage.error("无法加载详情（可能没有权限或未登录）");
+    ElMessage.error(t("detail.errLoad"));
     detail.value = null;
   } finally {
     loading.value = false;
   }
-}
-
-function text(key: string) {
-  const map: Record<string, string> = {
-    loading: "加载中…",
-    back: "返回市场",
-    meta: "元信息",
-    desc: "描述",
-    scanSum: "扫描结果",
-    flow: "任务流转",
-    dlZip: "下载 ZIP",
-    installZip: "安装（压缩包）",
-    installNpm: "安装（含 npm 依赖）",
-    installNpmTip: "若 ZIP 内含 package.json，将在临时目录运行 npm install --production",
-  };
-  return map[key] ?? key;
 }
 
 onMounted(() => void load());
@@ -234,16 +224,16 @@ onMounted(() => void load());
 
 <template>
   <div class="detail-page">
-    <div v-if="loading" class="muted">{{ text("loading") }}</div>
+    <div v-if="loading" class="muted">{{ t("detail.loading") }}</div>
 
     <div v-else-if="!detail" class="empty-card card-panel">
-      <p class="muted">未找到 Skill 或无权查看。</p>
-      <el-button class="mt" type="primary" @click="router.push({ name: 'explore' })">{{ text("back") }}</el-button>
+      <p class="muted">{{ t("detail.empty") }}</p>
+      <el-button class="mt" type="primary" @click="router.push({ name: 'explore' })">{{ t("detail.backMarket") }}</el-button>
     </div>
 
     <div v-else class="stack">
       <el-breadcrumb separator="/" class="crumb">
-        <el-breadcrumb-item :to="{ name: 'explore' }">应用市场</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ name: 'explore' }">{{ t("detail.breadcrumbMarket") }}</el-breadcrumb-item>
         <el-breadcrumb-item>{{ detail.name }}</el-breadcrumb-item>
       </el-breadcrumb>
 
@@ -257,21 +247,21 @@ onMounted(() => void load());
           </div>
         </div>
 
-        <p class="body">{{ detail.description || "（无描述）" }}</p>
+        <p class="body">{{ detail.description || t("detail.noDesc") }}</p>
 
         <div class="meta-line muted">
-          <span>作者：{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : "—" }}</span>
+          <span>{{ t("detail.author") }}{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : t("common.emDash") }}</span>
           <span class="dot">·</span>
-          <span>提交时间：{{ formatTime(detail.created_at) }}</span>
+          <span>{{ t("detail.submittedAt") }}{{ formatTime(detail.created_at) }}</span>
         </div>
 
         <template v-if="detail.status === 'published'">
           <div class="actions">
-            <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ text("dlZip") }}</el-button>
-            <el-button size="large" class="act-outline" plain :loading="installingZip" @click="onInstallZip">{{ text("installZip") }}</el-button>
-            <el-button size="large" class="act-outline npm-btn" plain :loading="installingNpm" @click="onInstallNpm">{{ text("installNpm") }}</el-button>
+            <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ t("detail.dlZip") }}</el-button>
+            <el-button size="large" class="act-outline" plain :loading="installingZip" @click="onInstallZip">{{ t("detail.installZip") }}</el-button>
+            <el-button size="large" class="act-outline npm-btn" plain :loading="installingNpm" @click="onInstallNpm">{{ t("detail.installNpm") }}</el-button>
           </div>
-          <p class="npm-tip muted">{{ text("installNpmTip") }}</p>
+          <p class="npm-tip muted">{{ t("detail.installNpmTip") }}</p>
 
           <el-alert
             v-if="lastInstallZip"
@@ -294,14 +284,14 @@ onMounted(() => void load());
             <template #title>{{ lastInstallNpm.message }}</template>
             <template #default>
               <div class="install-path">{{ lastInstallNpm.path }}</div>
-              <div class="muted install-npm-flag">{{ lastInstallNpm.npm_installed ? "已执行 npm install --production" : "未检测到 package.json，未执行 npm" }}</div>
+              <div class="muted install-npm-flag">{{ lastInstallNpm.npm_installed ? t("detail.npmRan") : t("detail.npmSkipped") }}</div>
             </template>
           </el-alert>
         </template>
       </section>
 
       <section class="scan-section">
-        <h2 class="section-title">{{ text("scanSum") }}</h2>
+        <h2 class="section-title">{{ t("detail.scanTitle") }}</h2>
         <el-row :gutter="16">
           <el-col v-for="row in layers" :key="row.type" :xs="24" :md="8">
             <div class="scan-card" :class="scanTone(row.type)">
@@ -312,10 +302,10 @@ onMounted(() => void load());
                 <el-icon v-else class="ico-warn"><WarningFilled /></el-icon>
               </div>
               <div class="scan-info">
-                <div class="scan-name">{{ layerTitle(row.type) }}</div>
+                <div class="scan-name">{{ scanLayerTitle(row.type) }}</div>
                 <div class="scan-badge">
                   <template v-if="scanIcon(row.scan, detail.status) === 'loading'">
-                    <el-tag type="info" effect="plain" size="small">待扫描</el-tag>
+                    <el-tag type="info" effect="plain" size="small">{{ t("detail.tagPendingScan") }}</el-tag>
                   </template>
                   <template v-else-if="scanIcon(row.scan, detail.status) === 'warn'">
                     <el-tag type="info" effect="plain" size="small">N/A</el-tag>
@@ -334,7 +324,7 @@ onMounted(() => void load());
       </section>
 
       <section class="flow-section">
-        <h2 class="section-title">{{ text("flow") }}</h2>
+        <h2 class="section-title">{{ t("detail.flowTitle") }}</h2>
         <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
           <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
         </el-steps>

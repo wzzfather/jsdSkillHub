@@ -4,9 +4,11 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { register } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
+import { useLocale } from "@/locales";
 
 const router = useRouter();
 const auth = useAuthStore();
+const { t } = useLocale();
 
 const form = reactive({
   username: "",
@@ -19,16 +21,16 @@ const loading = ref(false);
 
 async function onSubmit() {
   if (!form.username.trim()) {
-    ElMessage.warning("请填写用户名");
+    ElMessage.warning(t("register.warnUser"));
     return;
   }
   if (form.password !== form.confirm) {
-    ElMessage.warning("两次密码不一致");
+    ElMessage.warning(t("register.warnPwdMismatch"));
     return;
   }
   const emailTrim = form.email.trim();
   if (emailTrim && emailTrim.length < 5) {
-    ElMessage.warning("邮箱长度过短");
+    ElMessage.warning(t("register.warnEmailShort"));
     return;
   }
   loading.value = true;
@@ -38,7 +40,7 @@ async function onSubmit() {
       password: form.password,
       ...(emailTrim ? { email: emailTrim } : {}),
     });
-    ElMessage.success("注册成功");
+    ElMessage.success(t("register.ok"));
     if (data.email && !data.email_verified) {
       await router.replace({ name: "verify-email", query: { email: data.email } });
     } else {
@@ -46,23 +48,10 @@ async function onSubmit() {
       await router.replace("/explore");
     }
   } catch {
-    ElMessage.error("注册失败，用户名或邮箱可能已被占用");
+    ElMessage.error(t("register.fail"));
   } finally {
     loading.value = false;
   }
-}
-
-function text(key: string) {
-  const map: Record<string, string> = {
-    title: "注册",
-    user: "用户名",
-    email: "邮箱（可选，填写后需验证）",
-    pass: "密码",
-    confirm: "确认密码",
-    btn: "注册",
-    hint: "已有账号？去登录",
-  };
-  return map[key] ?? key;
 }
 </script>
 
@@ -83,28 +72,28 @@ function text(key: string) {
           </svg>
         </span>
         <div class="brand-name">Skill Store</div>
-        <div class="brand-sub">企业级 AI Agent 应用商店</div>
+        <div class="brand-sub">{{ t("common.brandSub") }}</div>
       </div>
 
-      <h1 class="title">{{ text("title") }}</h1>
+      <h1 class="title">{{ t("register.title") }}</h1>
 
       <el-form label-position="top" class="auth-form" @submit.prevent="onSubmit">
-        <el-form-item :label="text('user')">
+        <el-form-item :label="t('register.fieldUser')">
           <el-input v-model="form.username" class="auth-input" autocomplete="username" />
         </el-form-item>
-        <el-form-item :label="text('email')">
+        <el-form-item :label="t('register.fieldEmail')">
           <el-input v-model="form.email" class="auth-input" type="email" autocomplete="email" placeholder="name@company.com" />
         </el-form-item>
-        <el-form-item :label="text('pass')">
+        <el-form-item :label="t('register.fieldPass')">
           <el-input v-model="form.password" class="auth-input" type="password" autocomplete="new-password" />
         </el-form-item>
-        <el-form-item :label="text('confirm')">
+        <el-form-item :label="t('register.fieldConfirm')">
           <el-input v-model="form.confirm" class="auth-input" type="password" autocomplete="new-password" />
         </el-form-item>
-        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loading">{{ text("btn") }}</el-button>
+        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loading">{{ t("register.submit") }}</el-button>
         <div class="foot muted">
-          {{ text("hint") }}
-          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'login' })">登录</el-button>
+          {{ t("register.hintPrefix") }}
+          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'login' })">{{ t("register.linkLogin") }}</el-button>
         </div>
       </el-form>
     </div>

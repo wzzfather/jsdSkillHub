@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { fetchAdminSkills, fetchSkillCategories, offlineSkill, republishSkill } from "@/api/skills";
 import { approveSkill, rejectSkill } from "@/api/reviews";
 import type { SkillAdmin } from "@/api/types";
+import { useLocale } from "@/locales";
 
 const router = useRouter();
+const { t } = useLocale();
 
 const loading = ref(false);
 const forbidden = ref(false);
@@ -42,14 +44,14 @@ const rejectTarget = ref<SkillAdmin | null>(null);
 const approvingId = ref<string | null>(null);
 const rejectingId = ref<string | null>(null);
 
-const statusTabs: { key: typeof statusFilter.value; label: string }[] = [
-  { key: "", label: "全部" },
-  { key: "scanning", label: "扫描中" },
-  { key: "pending_review", label: "待审核" },
-  { key: "published", label: "已上架" },
-  { key: "offline", label: "已下架" },
-  { key: "rejected", label: "已驳回" },
-];
+const statusTabs = computed(() => [
+  { key: "" as "", label: t("admin.tabAll") },
+  { key: "scanning", label: t("skillStatus.scanning") },
+  { key: "pending_review", label: t("skillStatus.pending_review_admin") },
+  { key: "published", label: t("skillStatus.published") },
+  { key: "offline", label: t("skillStatus.offline") },
+  { key: "rejected", label: t("skillStatus.rejected") },
+]);
 
 async function loadCategories() {
   try {
@@ -66,7 +68,7 @@ onMounted(() => {
 });
 
 function formatTime(iso?: string | null) {
-  if (!iso) return "—";
+  if (!iso) return t("common.emDash");
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
@@ -75,23 +77,24 @@ function formatTime(iso?: string | null) {
 function authorCell(row: SkillAdmin) {
   if (row.author_username) return row.author_username;
   const id = row.author_id;
-  if (!id) return "—";
+  if (!id) return t("common.emDash");
   return id.length <= 12 ? id : `…${id.slice(-10)}`;
 }
 
 function categoryCell(row: SkillAdmin) {
-  return row.category && row.category.trim() ? row.category : "—";
+  return row.category && row.category.trim() ? row.category : t("common.emDash");
 }
 
 function statusLabel(s: string) {
-  const map: Record<string, string> = {
-    scanning: "扫描中",
-    pending_review: "待审核",
-    published: "已上架",
-    offline: "已下架",
-    rejected: "已驳回",
+  const keys: Record<string, string> = {
+    scanning: "skillStatus.scanning",
+    pending_review: "skillStatus.pending_review_admin",
+    published: "skillStatus.published",
+    offline: "skillStatus.offline",
+    rejected: "skillStatus.rejected",
   };
-  return map[s] ?? s;
+  const k = keys[s];
+  return k ? t(k) : s;
 }
 
 function statusTagType(s: string): "success" | "warning" | "info" | "danger" {
@@ -119,7 +122,7 @@ async function reload() {
   } catch (e: unknown) {
     const err = e as { response?: { status?: number } };
     if (err.response?.status === 403) forbidden.value = true;
-    ElMessage.error("加载应用列表失败");
+    ElMessage.error(t("admin.errLoad"));
   } finally {
     loading.value = false;
   }
@@ -136,7 +139,7 @@ async function confirmOffline() {
   if (!row) return;
   const reason = offlineReason.value.trim();
   if (!reason) {
-    ElMessage.warning("请填写下架原因");
+    ElMessage.warning(t("admin.warnOfflineReason"));
     return;
   }
   try {
@@ -146,17 +149,17 @@ async function confirmOffline() {
     offlineTarget.value = null;
     await reload();
   } catch {
-    ElMessage.error("下架失败");
+    ElMessage.error(t("admin.errOffline"));
   }
 }
 
 async function onRepublish(row: SkillAdmin) {
   try {
     await republishSkill(row.id);
-    ElMessage.success("已提交重新上架审批，请前往审批工作台查看");
+    ElMessage.success(t("admin.okRepublish"));
     await reload();
   } catch {
-    ElMessage.error("重新上架失败");
+    ElMessage.error(t("admin.errRepublish"));
   }
 }
 
@@ -171,7 +174,7 @@ async function confirmReject() {
   if (!row) return;
   const reason = rejectReason.value.trim();
   if (!reason) {
-    ElMessage.warning("请填写驳回原因");
+    ElMessage.warning(t("admin.warnRejectReason"));
     return;
   }
   rejectingId.value = row.id;
@@ -182,7 +185,7 @@ async function confirmReject() {
     rejectTarget.value = null;
     await reload();
   } catch {
-    ElMessage.error("驳回失败");
+    ElMessage.error(t("admin.errReject"));
   } finally {
     rejectingId.value = null;
   }
@@ -195,7 +198,7 @@ async function onQuickApprove(row: SkillAdmin) {
     ElMessage.success(data.message);
     await reload();
   } catch {
-    ElMessage.error("审批通过失败");
+    ElMessage.error(t("admin.errApprove"));
   } finally {
     approvingId.value = null;
   }
@@ -239,19 +242,19 @@ watch(
 <template>
   <div class="admin-apps">
     <header class="filter-hero card-panel">
-      <h1 class="page-heading">应用管理</h1>
-      <p class="muted page-lead">查看并管理各状态 Skill，支持搜索、筛选、快捷审批与上下架控制。</p>
+      <h1 class="page-heading">{{ t("admin.title") }}</h1>
+      <p class="muted page-lead">{{ t("admin.lead") }}</p>
 
       <div class="pill-row">
         <button
-          v-for="t in statusTabs"
-          :key="t.key || 'all'"
+          v-for="tab in statusTabs"
+          :key="tab.key || 'all'"
           type="button"
           class="pill"
-          :class="{ active: statusFilter === t.key }"
-          @click="statusFilter = t.key"
+          :class="{ active: statusFilter === tab.key }"
+          @click="statusFilter = tab.key as typeof statusFilter.value"
         >
-          {{ t.label }}
+          {{ tab.label }}
         </button>
       </div>
     </header>
@@ -263,7 +266,7 @@ watch(
           v-model="searchQuery"
           class="filter-search"
           clearable
-          placeholder="搜索技能名称或描述…"
+          :placeholder="t('admin.searchPh')"
           size="default"
         >
           <template #prefix>
@@ -271,8 +274,8 @@ watch(
           </template>
         </el-input>
 
-        <el-select v-model="categoryFilter" class="filter-select" clearable placeholder="分类筛选">
-          <el-option label="全部分类" value="" />
+        <el-select v-model="categoryFilter" class="filter-select" clearable :placeholder="t('admin.categoryPh')">
+          <el-option :label="t('admin.categoryAll')" value="" />
           <el-option v-for="cat in dynamicCategories" :key="cat" :label="cat" :value="cat" />
         </el-select>
 
@@ -280,15 +283,15 @@ watch(
           v-model="authorFilter"
           class="filter-author"
           clearable
-          placeholder="按作者筛选…"
+          :placeholder="t('admin.authorPh')"
           size="default"
         />
       </div>
     </div>
 
     <p class="workflow-hint muted">
-      <strong>快捷审批：</strong>待审核状态的技能可直接在此页面通过或驳回，无需跳转审批工作台。
-      下架后的重新上架申请需经审批。
+      <strong>{{ t("admin.workflowStrong") }}</strong>
+      {{ t("admin.workflowBody") }}
     </p>
 
     <div v-if="forbidden" class="muted">无权访问此页面。</div>

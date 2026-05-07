@@ -5,9 +5,11 @@ import { ElMessage } from "element-plus";
 import { fetchSkills } from "@/api/skills";
 import type { WorkflowOverview } from "@/api/types";
 import { useAuthStore } from "@/stores/auth";
+import { useLocale } from "@/locales";
 
 const router = useRouter();
 const auth = useAuthStore();
+const { t } = useLocale();
 
 const loading = ref(false);
 const overview = ref<WorkflowOverview>({
@@ -39,31 +41,16 @@ async function load() {
       rejected: rejected.data.total,
     };
   } catch {
-    ElMessage.error("加载看板数据失败");
+    ElMessage.error(t("dashboard.errLoad"));
   } finally {
     loading.value = false;
   }
 }
 
-function text(key: string) {
-  const map: Record<string, string> = {
-    headline: "看板总览",
-    sub: "汇总平台内各状态 Skill 数量（不包含已下架等状态的扩展统计）。",
-    total: "总 Skill 数",
-    scan: "扫描中",
-    pending: "待审批",
-    pub: "已上架",
-    goExplore: "浏览市场",
-    goSubmit: "提交应用",
-    goReview: "审批工作台",
-  };
-  return map[key] ?? key;
-}
-
 async function goReview() {
   await auth.ensureAdmin();
   if (!auth.isAdmin) {
-    ElMessage.warning("需要管理员权限");
+    ElMessage.warning(t("dashboard.needAdmin"));
     return;
   }
   router.push({ name: "review" });
@@ -75,8 +62,8 @@ onMounted(() => void load());
 <template>
   <div class="dash-page">
     <header class="page-head card-panel">
-      <h2 class="page-heading">{{ text("headline") }}</h2>
-      <p class="muted page-lead">{{ text("sub") }}</p>
+      <h2 class="page-heading">{{ t("dashboard.title") }}</h2>
+      <p class="muted page-lead">{{ t("dashboard.sub") }}</p>
     </header>
 
     <el-row :gutter="16" class="kpi-row" v-loading="loading">
@@ -93,7 +80,7 @@ onMounted(() => void load());
           </div>
           <div class="kpi-text">
             <div class="kpi-num">{{ overview.total }}</div>
-            <div class="kpi-label muted">{{ text("total") }}</div>
+            <div class="kpi-label muted">{{ t("dashboard.kpiTotal") }}</div>
           </div>
         </div>
       </el-col>
@@ -109,7 +96,7 @@ onMounted(() => void load());
           </div>
           <div class="kpi-text">
             <div class="kpi-num">{{ overview.scanning }}</div>
-            <div class="kpi-label muted">{{ text("scan") }}</div>
+            <div class="kpi-label muted">{{ t("dashboard.kpiScan") }}</div>
           </div>
         </div>
       </el-col>
@@ -125,7 +112,7 @@ onMounted(() => void load());
           </div>
           <div class="kpi-text">
             <div class="kpi-num">{{ overview.pending_review }}</div>
-            <div class="kpi-label muted">{{ text("pending") }}</div>
+            <div class="kpi-label muted">{{ t("dashboard.kpiPending") }}</div>
           </div>
         </div>
       </el-col>
@@ -138,16 +125,16 @@ onMounted(() => void load());
           </div>
           <div class="kpi-text">
             <div class="kpi-num">{{ overview.published }}</div>
-            <div class="kpi-label muted">{{ text("pub") }}</div>
+            <div class="kpi-label muted">{{ t("dashboard.kpiPub") }}</div>
           </div>
         </div>
       </el-col>
     </el-row>
 
     <div class="actions card-panel">
-      <el-button type="primary" plain @click="router.push({ name: 'explore' })">{{ text("goExplore") }}</el-button>
-      <el-button type="success" plain @click="router.push({ name: 'submit' })">{{ text("goSubmit") }}</el-button>
-      <el-button type="danger" plain @click="goReview">{{ text("goReview") }}</el-button>
+      <el-button type="primary" plain @click="router.push({ name: 'explore' })">{{ t("dashboard.goExplore") }}</el-button>
+      <el-button type="success" plain @click="router.push({ name: 'submit' })">{{ t("dashboard.goSubmit") }}</el-button>
+      <el-button type="danger" plain @click="goReview">{{ t("dashboard.goReview") }}</el-button>
     </div>
   </div>
 </template>

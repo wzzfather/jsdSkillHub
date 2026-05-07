@@ -3,10 +3,12 @@ import { reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { useAuthStore } from "@/stores/auth";
+import { useLocale } from "@/locales";
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const { t } = useLocale();
 
 const loginMode = ref<"username" | "email">("username");
 
@@ -24,7 +26,7 @@ async function onSubmit() {
     if (loginMode.value === "username") {
       const u = form.username.trim();
       if (!u) {
-        ElMessage.warning("请填写用户名");
+        ElMessage.warning(t("login.warnUser"));
         loading.value = false;
         return;
       }
@@ -32,34 +34,20 @@ async function onSubmit() {
     } else {
       const em = form.email.trim();
       if (!em) {
-        ElMessage.warning("请填写邮箱");
+        ElMessage.warning(t("login.warnEmail"));
         loading.value = false;
         return;
       }
       await auth.login({ email: em, password: form.password });
     }
-    ElMessage.success("登录成功");
+    ElMessage.success(t("login.ok"));
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "";
     await router.replace(redirect && redirect.startsWith("/") ? redirect : "/explore");
   } catch {
-    ElMessage.error("登录失败，请检查账号密码");
+    ElMessage.error(t("login.fail"));
   } finally {
     loading.value = false;
   }
-}
-
-function text(key: string) {
-  const map: Record<string, string> = {
-    title: "登录",
-    user: "用户名",
-    email: "邮箱",
-    pass: "密码",
-    btn: "登录",
-    hint: "没有账号？去注册",
-    modeUser: "用户名登录",
-    modeEmail: "邮箱登录",
-  };
-  return map[key] ?? key;
 }
 </script>
 
@@ -80,34 +68,34 @@ function text(key: string) {
           </svg>
         </span>
         <div class="brand-name">Skill Store</div>
-        <div class="brand-sub">企业级 AI Agent 应用商店</div>
+        <div class="brand-sub">{{ t("common.brandSub") }}</div>
       </div>
 
-      <h1 class="title">{{ text("title") }}</h1>
+      <h1 class="title">{{ t("login.title") }}</h1>
 
       <el-radio-group v-model="loginMode" class="mode-switch" size="large">
-        <el-radio-button label="username">{{ text("modeUser") }}</el-radio-button>
-        <el-radio-button label="email">{{ text("modeEmail") }}</el-radio-button>
+        <el-radio-button label="username">{{ t("login.modeUser") }}</el-radio-button>
+        <el-radio-button label="email">{{ t("login.modeEmail") }}</el-radio-button>
       </el-radio-group>
 
       <el-form label-position="top" class="auth-form" @submit.prevent="onSubmit">
         <template v-if="loginMode === 'username'">
-          <el-form-item :label="text('user')">
+          <el-form-item :label="t('login.fieldUser')">
             <el-input v-model="form.username" class="auth-input" autocomplete="username" />
           </el-form-item>
         </template>
         <template v-else>
-          <el-form-item :label="text('email')">
+          <el-form-item :label="t('login.fieldEmail')">
             <el-input v-model="form.email" class="auth-input" type="email" autocomplete="email" />
           </el-form-item>
         </template>
-        <el-form-item :label="text('pass')">
+        <el-form-item :label="t('login.fieldPass')">
           <el-input v-model="form.password" class="auth-input" type="password" autocomplete="current-password" />
         </el-form-item>
-        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loading">{{ text("btn") }}</el-button>
+        <el-button type="primary" class="auth-submit" native-type="submit" :loading="loading">{{ t("login.submit") }}</el-button>
         <div class="foot muted">
-          {{ text("hint") }}
-          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'register' })">注册</el-button>
+          {{ t("login.hintPrefix") }}
+          <el-button link type="primary" class="link-btn" @click="router.push({ name: 'register' })">{{ t("login.linkRegister") }}</el-button>
         </div>
       </el-form>
     </div>

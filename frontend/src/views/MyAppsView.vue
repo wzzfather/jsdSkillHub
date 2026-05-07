@@ -4,8 +4,10 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { fetchMySkills, resubmitSkill } from "@/api/skills";
 import type { Skill } from "@/api/types";
+import { useLocale } from "@/locales";
 
 const router = useRouter();
+const { t } = useLocale();
 const loading = ref(false);
 const items = ref<Skill[]>([]);
 const resubmitingId = ref<string | null>(null);
@@ -22,15 +24,16 @@ function statusType(status: string) {
 }
 
 function statusLabel(status: string) {
-  const m: Record<string, string> = {
-    scanning: "扫描中",
-    pending_review: "待审批",
-    published: "已上架",
-    rejected: "已驳回",
-    offline: "已下架",
-    draft: "草稿",
+  const keys: Record<string, string> = {
+    scanning: "skillStatus.scanning",
+    pending_review: "skillStatus.pending_review",
+    published: "skillStatus.published",
+    rejected: "skillStatus.rejected",
+    offline: "skillStatus.offline",
+    draft: "skillStatus.draft",
   };
-  return m[status] ?? status;
+  const k = keys[status];
+  return k ? t(k) : status;
 }
 
 function rowClass({ row }: { row: Skill }) {
@@ -119,7 +122,7 @@ async function load() {
     items.value = all;
     restartPollIfNeeded();
   } catch {
-    ElMessage.error("加载失败");
+    ElMessage.error(t("myApps.errLoad"));
   } finally {
     loading.value = false;
   }
@@ -133,10 +136,10 @@ async function onResubmit(s: Skill) {
   resubmitingId.value = s.id;
   try {
     await resubmitSkill(s.id);
-    ElMessage.success("已重新提交，已进入审批");
+    ElMessage.success(t("myApps.msgResubmitOk"));
     await load();
   } catch {
-    ElMessage.error("重新提交失败");
+    ElMessage.error(t("myApps.errResubmit"));
   } finally {
     resubmitingId.value = null;
   }
@@ -149,22 +152,22 @@ onUnmounted(() => clearPoll());
 <template>
   <div class="my-apps">
     <header class="page-head card-panel">
-      <h2 class="page-heading">我的应用</h2>
-      <p class="muted page-lead">你提交的 Skill（含扫描中、待审批、已上架等所有状态）。</p>
+      <h2 class="page-heading">{{ t("myApps.title") }}</h2>
+      <p class="muted page-lead">{{ t("myApps.lead") }}</p>
 
       <div class="flow-wrap">
         <el-steps class="lifecycle-steps" :active="flowBar.activeStep" finish-status="success" :process-status="flowBar.processStatus" align-center>
-          <el-step title="上传" description="已提交 ZIP" />
-          <el-step title="扫描中" description="三层安全扫描" />
-          <el-step title="待审批" description="运营 / 管理员审核" />
-          <el-step title="已上架" description="市场可见、可安装" />
+          <el-step :title="t('myApps.flowUpload')" :description="t('myApps.flowUploadDesc')" />
+          <el-step :title="t('myApps.flowScan')" :description="t('myApps.flowScanDesc')" />
+          <el-step :title="t('myApps.flowReview')" :description="t('myApps.flowReviewDesc')" />
+          <el-step :title="t('myApps.flowPub')" :description="t('myApps.flowPubDesc')" />
         </el-steps>
 
-        <el-alert v-if="flowBar.bannerVariant === 'rejected'" class="flow-banner flow-banner-danger" type="error" :closable="false" show-icon title="部分应用已驳回，可编辑后点击「重新提交」进入队列" />
-        <el-alert v-else-if="flowBar.bannerVariant === 'offline'" class="flow-banner flow-banner-muted" type="info" :closable="false" show-icon title="存在已下架应用，列表中可查看下架原因" />
+        <el-alert v-if="flowBar.bannerVariant === 'rejected'" class="flow-banner flow-banner-danger" type="error" :closable="false" show-icon :title="t('myApps.bannerRejected')" />
+        <el-alert v-else-if="flowBar.bannerVariant === 'offline'" class="flow-banner flow-banner-muted" type="info" :closable="false" show-icon :title="t('myApps.bannerOffline')" />
 
         <div v-if="livePipelineHint.length" class="live-hint card-panel-muted">
-          <div class="live-hint-title">进行中</div>
+          <div class="live-hint-title">{{ t("myApps.inProgress") }}</div>
           <ul class="live-hint-list">
             <li v-for="s in livePipelineHint" :key="s.id" class="live-hint-item">
               <span class="live-hint-name">{{ s.name }}</span>
@@ -175,52 +178,52 @@ onUnmounted(() => clearPoll());
       </div>
     </header>
 
-    <div v-if="loading" class="muted" style="padding: 16px 4px">加载中…</div>
+    <div v-if="loading" class="muted" style="padding: 16px 4px">{{ t("common.loading") }}</div>
 
-    <el-empty v-else-if="items.length === 0" description="暂无 Skill 记录" />
+    <el-empty v-else-if="items.length === 0" :description="t('myApps.empty')" />
 
     <el-card v-else class="table-card" shadow="never">
       <el-table :data="items" stripe class="apps-table" :row-class-name="rowClass" style="width: 100%">
-        <el-table-column prop="name" label="名称" min-width="200">
+        <el-table-column prop="name" :label="t('myApps.colName')" min-width="200">
           <template #default="{ row }">
             <span class="link" @click="goDetail(row)">{{ row.name }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="version" label="版本" width="100" />
-        <el-table-column prop="category" label="分类" width="140">
+        <el-table-column prop="version" :label="t('myApps.colVersion')" width="100" />
+        <el-table-column prop="category" :label="t('myApps.colCategory')" width="140">
           <template #default="{ row }">
-            {{ row.category || "—" }}
+            {{ row.category || t("common.emDash") }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" min-width="200">
+        <el-table-column prop="status" :label="t('myApps.colStatus')" min-width="200">
           <template #default="{ row }">
             <template v-if="waitingStatuses.has(row.status)">
-              <el-tag type="warning" size="small">等待处理</el-tag>
+              <el-tag type="warning" size="small">{{ t("myApps.tagWaiting") }}</el-tag>
               <span class="muted wait-hint">{{ statusLabel(row.status) }}</span>
             </template>
             <template v-else-if="row.status === 'offline'">
-              <el-tag type="info" size="small">已下架</el-tag>
+              <el-tag type="info" size="small">{{ t("myApps.tagOffline") }}</el-tag>
               <div v-if="row.offline_comment" class="offline-reason muted">
-                下架原因：{{ row.offline_comment }}
+                {{ t("myApps.offlineReason") }}{{ row.offline_comment }}
               </div>
             </template>
             <el-tag v-else :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140">
+        <el-table-column :label="t('myApps.colActions')" width="140">
           <template #default="{ row }">
             <template v-if="row.status === 'published'">
-              <el-button text type="primary" size="small" @click="goDetail(row)">查看详情</el-button>
+              <el-button text type="primary" size="small" @click="goDetail(row)">{{ t("myApps.actionView") }}</el-button>
             </template>
             <template v-else-if="row.status === 'rejected'">
               <el-button text type="primary" size="small" :loading="resubmitingId === row.id" @click="onResubmit(row)">
-                重新提交
+                {{ t("myApps.actionResubmit") }}
               </el-button>
             </template>
             <template v-else-if="!waitingStatuses.has(row.status) && row.status !== 'offline'">
-              <el-button text type="primary" size="small" @click="goDetail(row)">详情</el-button>
+              <el-button text type="primary" size="small" @click="goDetail(row)">{{ t("myApps.actionDetail") }}</el-button>
             </template>
-            <span v-else class="muted">—</span>
+            <span v-else class="muted">{{ t("common.emDash") }}</span>
           </template>
         </el-table-column>
       </el-table>

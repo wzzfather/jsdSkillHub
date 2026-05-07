@@ -3,8 +3,10 @@ import { computed, onMounted, ref } from "vue";
 import { RouterView, useRoute, useRouter } from "vue-router";
 import { ArrowDown, Moon, Sunny } from "@element-plus/icons-vue";
 import { useAuthStore } from "@/stores/auth";
+import { useLocale } from "@/locales";
 
 const THEME_STORAGE_KEY = "theme";
+const { t, locale, setLocale } = useLocale();
 
 const router = useRouter();
 const route = useRoute();
@@ -54,6 +56,14 @@ function toggleTheme() {
   isDark.value = dark;
 }
 
+function langLabelShown() {
+  return locale.value === "en" ? t("lang.en") : t("lang.zh");
+}
+
+function onLangCommand(cmd: string) {
+  setLocale(cmd as 'zh' | 'en');
+}
+
 onMounted(() => {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "dark") {
@@ -86,30 +96,42 @@ onMounted(() => {
           <span class="brand-title">Skill Store</span>
         </div>
 
-        <nav class="app-nav primary-nav" aria-label="主导航">
+        <nav class="app-nav primary-nav" :aria-label="t('nav.primaryAria')">
           <button type="button" class="plain-nav" :class="navClass(['explore', 'skill-detail'])" @click="router.push({ name: 'explore' })">
-            浏览
+            {{ t("nav.explore") }}
           </button>
 
           <template v-if="isAuthed">
-            <button type="button" class="plain-nav" :class="navClass('submit')" @click="router.push({ name: 'submit' })">提交应用</button>
-            <button type="button" class="plain-nav" :class="navClass('my-apps')" @click="router.push({ name: 'my-apps' })">我的应用</button>
-            <button type="button" class="plain-nav" :class="navClass('dashboard')" @click="router.push({ name: 'dashboard' })">看板</button>
+            <button type="button" class="plain-nav" :class="navClass('submit')" @click="router.push({ name: 'submit' })">{{ t("nav.submit") }}</button>
+            <button type="button" class="plain-nav" :class="navClass('my-apps')" @click="router.push({ name: 'my-apps' })">{{ t("nav.myApps") }}</button>
+            <button type="button" class="plain-nav" :class="navClass('dashboard')" @click="router.push({ name: 'dashboard' })">{{ t("nav.dashboard") }}</button>
             <button v-if="isAdmin" type="button" class="plain-nav" :class="navClass('review')" @click="router.push({ name: 'review' })">
-              审批工作台
+              {{ t("nav.review") }}
             </button>
             <button v-if="isAdmin" type="button" class="plain-nav" :class="navClass('admin-apps')" @click="router.push({ name: 'admin-apps' })">
-              应用管理
+              {{ t("nav.adminApps") }}
             </button>
           </template>
         </nav>
       </div>
 
       <div class="header-right">
+        <el-dropdown trigger="click" @command="onLangCommand">
+          <button type="button" class="lang-toggle" :aria-label="t('lang.switchAria')">
+            <span class="lang-toggle-text">{{ langLabelShown() }}</span>
+            <el-icon class="lang-chevron" :size="12"><ArrowDown /></el-icon>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="zh">{{ t("lang.zh") }}</el-dropdown-item>
+              <el-dropdown-item command="en">{{ t("lang.en") }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <button
           type="button"
           class="theme-toggle"
-          :aria-label="isDark ? '切换为亮色主题' : '切换为暗色主题'"
+          :aria-label="isDark ? t('theme.toLight') : t('theme.toDark')"
           @click="toggleTheme"
         >
           <el-icon class="theme-toggle-ico" :size="18" aria-hidden="true">
@@ -118,19 +140,19 @@ onMounted(() => {
           </el-icon>
         </button>
         <template v-if="!isAuthed">
-          <button type="button" class="plain-nav" :class="navClass('login')" @click="router.push({ name: 'login' })">登录</button>
+          <button type="button" class="plain-nav" :class="navClass('login')" @click="router.push({ name: 'login' })">{{ t("nav.login") }}</button>
           <button type="button" class="plain-nav register-pill" :class="navClass('register')" @click="router.push({ name: 'register' })">
-            注册
+            {{ t("nav.register") }}
           </button>
         </template>
         <el-dropdown v-else trigger="click" @command="(c: string) => c === 'logout' && logout()">
           <span class="user-trigger">
-            <span class="user-avatar" :title="auth.userId || '用户'">{{ userInitial }}</span>
+            <span class="user-avatar" :title="auth.userId || t('user.fallbackTitle')">{{ userInitial }}</span>
             <el-icon class="user-chevron"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              <el-dropdown-item command="logout">{{ t("nav.logout") }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -145,7 +167,7 @@ onMounted(() => {
       </RouterView>
     </main>
 
-    <footer class="app-footer">© 2026 AI Agent Skill Store</footer>
+    <footer class="app-footer">{{ t("footer.copy") }}</footer>
   </div>
 </template>
 
@@ -275,6 +297,30 @@ onMounted(() => {
 
 .theme-toggle:hover .theme-toggle-ico {
   color: var(--app-primary);
+}
+
+.lang-toggle {
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-text);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.lang-toggle:hover {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.lang-chevron {
+  color: var(--app-muted);
 }
 
 .user-trigger {
