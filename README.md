@@ -32,13 +32,13 @@
 ### 登录 / 注册
 用户名 + 邮箱双模式，邮箱验证码
 <p align="center">
-  <img src="screenshots/02_login_v2.png" alt="登录" width="400">&nbsp;&nbsp;
-  <img src="screenshots/03_register_v2.png" alt="注册" width="400">
+  <img src="screenshots/02_login_v2.png?v=3" alt="登录" width="400">&nbsp;&nbsp;
+  <img src="screenshots/03_register_v2.png?v=3" alt="注册" width="400">
 </p>
 
 ### 邮箱验证
 <p align="center">
-  <img src="screenshots/04_verify_email_v2.png" alt="邮箱验证" width="400">
+  <img src="screenshots/04_verify_email_v2.png?v=3" alt="邮箱验证" width="400">
 </p>
 
 ### 提交应用
