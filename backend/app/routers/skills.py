@@ -26,6 +26,7 @@ from app.schemas.common import (
     PaginatedSkills,
     ScanLayerSummary,
     SkillAdminRow,
+    SkillCategoriesResponse,
     SkillDetailResponse,
     SkillResponse,
 )
@@ -45,6 +46,13 @@ def _norm_category_column():
     return func.lower(trimmed)
 
 
+def _category_filter_clause(cat_key: str):
+    norm = _norm_category_column()
+    if cat_key == "other":
+        return or_(norm == "", ~norm.in_(_STANDARD_MARKET_CATEGORIES))
+    return norm == cat_key
+
+
 def _clamp_page_size(page_size: int) -> int:
     return max(1, min(page_size, 100))
 
@@ -58,42 +66,46 @@ async def list_skills(
     category: Annotated[str | None, Query()] = None,
     sort: str = "newest",
     search: Annotated[str | None, Query()] = None,
+    author: Annotated[str | None, Query()] = None,
 ) -> PaginatedSkills:
     page_size = _clamp_page_size(page_size)
     if page < 1:
         page = 1
 
-    stmt = select(Skill)
-    count_stmt = select(func.count()).select_from(Skill)
-
     effective_status = status_filter if status_filter is not None else "published"
-    stmt = stmt.where(Skill.status == effective_status)
-    count_stmt = count_stmt.where(Skill.status == effective_status)
 
+    wheres = [Skill.status == effective_status]
     if category is not None and category.strip():
         cat_key = category.strip().lower()
-        norm = _norm_category_column()
-        if cat_key == "other":
-            cat_filter = or_(norm == "", ~norm.in_(_STANDARD_MARKET_CATEGORIES))
-        elif cat_key in _STANDARD_MARKET_CATEGORIES:
-            cat_filter = norm == cat_key
-        else:
-            cat_filter = norm == cat_key
-        stmt = stmt.where(cat_filter)
-        count_stmt = count_stmt.where(cat_filter)
+        wheres.append(_category_filter_clause(cat_key))
 
     q = search.strip() if search and search.strip() else None
     if q:
         like = f"%{q}%"
-        search_filter = or_(Skill.name.ilike(like), Skill.description.ilike(like))
-        stmt = stmt.where(search_filter)
-        count_stmt = count_stmt.where(search_filter)
+        wheres.append(or_(Skill.name.ilike(like), Skill.description.ilike(like)))
+
+    author_q = author.strip() if author and author.strip() else None
+    if author_q:
+        like_author = f"%{author_q}%"
+        wheres.append(User.username.ilike(like_author))
+
+    stmt = select(Skill)
+    count_stmt = select(func.count()).select_from(Skill)
+    if author_q:
+        stmt = stmt.join(User, Skill.author_id == User.id)
+        count_stmt = count_stmt.select_from(Skill).join(User, Skill.author_id == User.id)
+    for w in wheres:
+        stmt = stmt.where(w)
+        count_stmt = count_stmt.where(w)
 
     sort_norm = sort.strip().lower() if sort else "newest"
-    if sort_norm not in {"newest", "popular"}:
+    if sort_norm not in {"newest", "name", "popular", "install_count"}:
         sort_norm = "newest"
-    if sort_norm == "popular":
+    if sort_norm in ("name", "popular"):
         stmt = stmt.order_by(Skill.name.asc(), Skill.created_at.desc())
+    elif sort_norm == "install_count":
+        # install_count 字段未就绪时按上架时间降序兜底
+        stmt = stmt.order_by(Skill.created_at.desc())
     else:
         stmt = stmt.order_by(Skill.created_at.desc())
 
@@ -104,11 +116,40 @@ async def list_skills(
     return PaginatedSkills(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/categories", response_model=SkillCategoriesResponse)
+async def list_published_skill_categories(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SkillCategoriesResponse:
+    stmt = (
+        select(Skill.category)
+        .where(Skill.status == "published")
+        .where(Skill.category.isnot(None))
+        .where(func.trim(Skill.category) != "")
+    )
+    raw = list((await db.scalars(stmt)).all())
+    seen_set: set[str] = set()
+    items: list[str] = []
+    for c in raw:
+        t = (c or "").strip()
+        if not t:
+            continue
+        key = t.casefold()
+        if key in seen_set:
+            continue
+        seen_set.add(key)
+        items.append(t)
+    items.sort(key=str.casefold)
+    return SkillCategoriesResponse(items=items)
+
+
 @router.get("/admin/all", response_model=PaginatedAdminSkills)
 async def list_skills_admin(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[User, Depends(require_admin)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    category: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+    author: Annotated[str | None, Query()] = None,
     page: int = 1,
     page_size: int = 20,
 ) -> PaginatedAdminSkills:
@@ -116,13 +157,32 @@ async def list_skills_admin(
     if page < 1:
         page = 1
 
+    wheres = []
+    if status_filter is not None and status_filter.strip():
+        wheres.append(Skill.status == status_filter.strip())
+
+    if category is not None and category.strip():
+        cat_key = category.strip().lower()
+        wheres.append(_category_filter_clause(cat_key))
+
+    q = search.strip() if search and search.strip() else None
+    if q:
+        like = f"%{q}%"
+        wheres.append(or_(Skill.name.ilike(like), Skill.description.ilike(like)))
+
+    author_q = author.strip() if author and author.strip() else None
+    if author_q:
+        like_author = f"%{author_q}%"
+        wheres.append(User.username.ilike(like_author))
+
     stmt = select(Skill).options(selectinload(Skill.author))
     count_stmt = select(func.count()).select_from(Skill)
-
-    if status_filter is not None and status_filter.strip():
-        sf = status_filter.strip()
-        stmt = stmt.where(Skill.status == sf)
-        count_stmt = count_stmt.where(Skill.status == sf)
+    if author_q:
+        stmt = stmt.join(User, Skill.author_id == User.id)
+        count_stmt = count_stmt.select_from(Skill).join(User, Skill.author_id == User.id)
+    for w in wheres:
+        stmt = stmt.where(w)
+        count_stmt = count_stmt.where(w)
 
     total = int(await db.scalar(count_stmt) or 0)
     stmt = stmt.order_by(Skill.created_at.desc()).offset((page - 1) * page_size).limit(page_size)

@@ -16,11 +16,23 @@ export async function fetchSkills(params?: {
   category?: string;
   sort?: string;
   search?: string;
+  author?: string;
 }) {
   return api.get<Paginated<Skill>>("/skills", { params });
 }
 
-export async function fetchAdminSkills(params?: { status?: string; page?: number; page_size?: number }) {
+export async function fetchSkillCategories() {
+  return api.get<{ items: string[] }>("/skills/categories");
+}
+
+export async function fetchAdminSkills(params?: {
+  status?: string;
+  page?: number;
+  page_size?: number;
+  search?: string;
+  category?: string;
+  author?: string;
+}) {
   return api.get<Paginated<SkillAdmin>>("/skills/admin/all", { params });
 }
 

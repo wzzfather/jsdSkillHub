@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { fetchAdminSkills, offlineSkill, republishSkill } from "@/api/skills";
+import { fetchAdminSkills, fetchSkillCategories, offlineSkill, republishSkill } from "@/api/skills";
+import { approveSkill, rejectSkill } from "@/api/reviews";
 import type { SkillAdmin } from "@/api/types";
 
 const router = useRouter();
@@ -15,18 +17,53 @@ const page = ref(1);
 const pageSize = 20;
 const statusFilter = ref<"" | "scanning" | "pending_review" | "published" | "offline" | "rejected">("");
 
+// 新增筛选
+const searchQuery = ref("");
+const debouncedSearch = ref("");
+const categoryFilter = ref("");
+const authorFilter = ref("");
+const debouncedAuthor = ref("");
+
+// 动态分类
+const DEFAULT_CATEGORIES = ["productivity", "security", "support", "knowledge"];
+const dynamicCategories = ref<string[]>([]);
+
+// 下架对话框
 const offlineVisible = ref(false);
 const offlineReason = ref("");
 const offlineTarget = ref<SkillAdmin | null>(null);
 
+// 驳回对话框
+const rejectVisible = ref(false);
+const rejectReason = ref("");
+const rejectTarget = ref<SkillAdmin | null>(null);
+
+// 快捷审批 loading
+const approvingId = ref<string | null>(null);
+const rejectingId = ref<string | null>(null);
+
 const statusTabs: { key: typeof statusFilter.value; label: string }[] = [
   { key: "", label: "全部" },
-  { key: "scanning", label: "scanning" },
-  { key: "pending_review", label: "pending_review" },
-  { key: "published", label: "published" },
-  { key: "offline", label: "offline" },
-  { key: "rejected", label: "rejected" },
+  { key: "scanning", label: "扫描中" },
+  { key: "pending_review", label: "待审核" },
+  { key: "published", label: "已上架" },
+  { key: "offline", label: "已下架" },
+  { key: "rejected", label: "已驳回" },
 ];
+
+async function loadCategories() {
+  try {
+    const { data } = await fetchSkillCategories();
+    const list = data.items ?? [];
+    dynamicCategories.value = list.length > 0 ? list : DEFAULT_CATEGORIES;
+  } catch {
+    dynamicCategories.value = DEFAULT_CATEGORIES;
+  }
+}
+
+onMounted(() => {
+  void loadCategories();
+});
 
 function formatTime(iso?: string | null) {
   if (!iso) return "—";
@@ -73,6 +110,9 @@ async function reload() {
       status: statusFilter.value || undefined,
       page: page.value,
       page_size: pageSize,
+      search: debouncedSearch.value || undefined,
+      category: categoryFilter.value || undefined,
+      author: debouncedAuthor.value || undefined,
     });
     rows.value = data.items;
     total.value = data.total;
@@ -120,20 +160,75 @@ async function onRepublish(row: SkillAdmin) {
   }
 }
 
+function openReject(row: SkillAdmin) {
+  rejectTarget.value = row;
+  rejectReason.value = "";
+  rejectVisible.value = true;
+}
+
+async function confirmReject() {
+  const row = rejectTarget.value;
+  if (!row) return;
+  const reason = rejectReason.value.trim();
+  if (!reason) {
+    ElMessage.warning("请填写驳回原因");
+    return;
+  }
+  rejectingId.value = row.id;
+  try {
+    const { data } = await rejectSkill(row.id, reason);
+    ElMessage.success(data.message);
+    rejectVisible.value = false;
+    rejectTarget.value = null;
+    await reload();
+  } catch {
+    ElMessage.error("驳回失败");
+  } finally {
+    rejectingId.value = null;
+  }
+}
+
+async function onQuickApprove(row: SkillAdmin) {
+  approvingId.value = row.id;
+  try {
+    const { data } = await approveSkill(row.id);
+    ElMessage.success(data.message);
+    await reload();
+  } catch {
+    ElMessage.error("审批通过失败");
+  } finally {
+    approvingId.value = null;
+  }
+}
+
 function goDetail(row: SkillAdmin) {
   router.push({ name: "skill-detail", params: { id: row.id } });
 }
 
-function goReview() {
-  router.push({ name: "review" });
-}
+// goReview 保留：未来可能用于跳转到审批工作台
 
-watch(statusFilter, () => {
+// 防抖
+watch(searchQuery, (_q, _o, onCleanup) => {
+  const tid = window.setTimeout(() => {
+    debouncedSearch.value = searchQuery.value.trim();
+  }, 300);
+  onCleanup(() => clearTimeout(tid));
+});
+
+watch(authorFilter, (_q, _o, onCleanup) => {
+  const tid = window.setTimeout(() => {
+    debouncedAuthor.value = authorFilter.value.trim();
+  }, 300);
+  onCleanup(() => clearTimeout(tid));
+});
+
+// 筛选变化时重置页码
+watch([statusFilter, categoryFilter, debouncedSearch, debouncedAuthor], () => {
   page.value = 1;
 });
 
 watch(
-  [statusFilter, page],
+  [statusFilter, page, categoryFilter, debouncedSearch, debouncedAuthor],
   () => {
     void reload();
   },
@@ -145,7 +240,7 @@ watch(
   <div class="admin-apps">
     <header class="filter-hero card-panel">
       <h1 class="page-heading">应用管理</h1>
-      <p class="muted page-lead">查看并管理各状态 Skill，支持下架与重新上架。</p>
+      <p class="muted page-lead">查看并管理各状态 Skill，支持搜索、筛选、快捷审批与上下架控制。</p>
 
       <div class="pill-row">
         <button
@@ -161,7 +256,40 @@ watch(
       </div>
     </header>
 
-    <p class="workflow-hint muted">下架后的重新上架申请需经审批工作台审核。</p>
+    <!-- 搜索和筛选栏 -->
+    <div class="filter-bar card-panel">
+      <div class="filter-bar-inner">
+        <el-input
+          v-model="searchQuery"
+          class="filter-search"
+          clearable
+          placeholder="搜索技能名称或描述…"
+          size="default"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+
+        <el-select v-model="categoryFilter" class="filter-select" clearable placeholder="分类筛选">
+          <el-option label="全部分类" value="" />
+          <el-option v-for="cat in dynamicCategories" :key="cat" :label="cat" :value="cat" />
+        </el-select>
+
+        <el-input
+          v-model="authorFilter"
+          class="filter-author"
+          clearable
+          placeholder="按作者筛选…"
+          size="default"
+        />
+      </div>
+    </div>
+
+    <p class="workflow-hint muted">
+      <strong>快捷审批：</strong>待审核状态的技能可直接在此页面通过或驳回，无需跳转审批工作台。
+      下架后的重新上架申请需经审批。
+    </p>
 
     <div v-if="forbidden" class="muted">无权访问此页面。</div>
     <div v-else-if="loading" class="muted loading">加载中…</div>
@@ -189,20 +317,45 @@ watch(
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
+            <!-- 已上架：下架 -->
             <template v-if="row.status === 'published'">
               <el-button type="danger" size="small" plain @click="openOffline(row)">下架</el-button>
+              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
             </template>
+            <!-- 待审核：快捷审批 -->
+            <template v-else-if="row.status === 'pending_review'">
+              <el-button
+                type="success"
+                size="small"
+                plain
+                :loading="approvingId === row.id"
+                @click="onQuickApprove(row)"
+              >
+                通过
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                plain
+                :loading="rejectingId === row.id"
+                @click="openReject(row)"
+              >
+                驳回
+              </el-button>
+              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
+            </template>
+            <!-- 已下架：重新上架 -->
             <template v-else-if="row.status === 'offline'">
               <el-button type="success" size="small" plain @click="onRepublish(row)">重新上架</el-button>
+              <el-button size="small" plain @click="goDetail(row)">查看</el-button>
             </template>
+            <!-- 已驳回：查看 -->
             <template v-else-if="row.status === 'rejected'">
               <el-button size="small" plain @click="goDetail(row)">查看</el-button>
             </template>
-            <template v-else-if="row.status === 'pending_review'">
-              <el-button size="small" plain @click="goReview()">查看</el-button>
-            </template>
+            <!-- 扫描中：查看 -->
             <template v-else>
               <el-button size="small" plain @click="goDetail(row)">查看</el-button>
             </template>
@@ -221,12 +374,23 @@ watch(
       </div>
     </el-card>
 
+    <!-- 下架对话框 -->
     <el-dialog v-model="offlineVisible" title="下架应用" width="520px" destroy-on-close align-center append-to-body>
       <p class="muted dialog-hint">请填写下架原因，提交后将立即变为已下架。</p>
       <el-input v-model="offlineReason" type="textarea" :rows="4" placeholder="下架原因…" maxlength="2000" show-word-limit />
       <template #footer>
         <el-button @click="offlineVisible = false">取消</el-button>
         <el-button type="danger" @click="confirmOffline">确认下架</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 驳回对话框 -->
+    <el-dialog v-model="rejectVisible" title="驳回技能" width="520px" destroy-on-close align-center append-to-body>
+      <p class="muted dialog-hint">请填写驳回原因，提交后技能将变为已驳回状态。</p>
+      <el-input v-model="rejectReason" type="textarea" :rows="4" placeholder="驳回原因…" maxlength="2000" show-word-limit />
+      <template #footer>
+        <el-button @click="rejectVisible = false">取消</el-button>
+        <el-button type="danger" @click="confirmReject">确认驳回</el-button>
       </template>
     </el-dialog>
   </div>
@@ -290,6 +454,40 @@ watch(
   color: var(--app-primary);
 }
 
+.filter-bar {
+  padding: 16px 20px;
+}
+
+.filter-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-search {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.filter-select {
+  width: 160px;
+}
+
+.filter-author {
+  width: 180px;
+}
+
+.filter-search :deep(.el-input__wrapper),
+.filter-author :deep(.el-input__wrapper) {
+  border-radius: var(--radius-control);
+}
+
+.filter-select :deep(.el-select__wrapper) {
+  border-radius: var(--radius-control);
+  min-height: 32px;
+}
+
 .loading {
   padding: 12px 4px;
 }
@@ -312,5 +510,13 @@ watch(
 .dialog-hint {
   margin: 0 0 10px;
   font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .filter-search,
+  .filter-select,
+  .filter-author {
+    width: 100%;
+  }
 }
 </style>

@@ -121,6 +121,12 @@ class PaginatedSkills(BaseModel):
     page_size: int
 
 
+class SkillCategoriesResponse(BaseModel):
+    """已上架技能中出现的分类，去重排序。"""
+
+    items: list[str]
+
+
 class SkillAdminRow(SkillResponse):
     author_username: str | None = None
 

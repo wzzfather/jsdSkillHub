@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { fetchSkills } from "@/api/skills";
+import { fetchSkills, fetchSkillCategories } from "@/api/skills";
 import type { Skill } from "@/api/types";
 
 const router = useRouter();
@@ -14,9 +14,36 @@ const total = ref(0);
 const query = ref("");
 const debouncedSearch = ref("");
 const categoryFilter = ref("");
-const sortBy = ref<"newest" | "popular">("newest");
+const authorFilter = ref("");
+const debouncedAuthor = ref("");
+const sortBy = ref<"newest" | "name" | "install_count">("newest");
 const page = ref(1);
 const pageSize = 12;
+
+const DEFAULT_CATEGORIES = ["productivity", "security", "support", "knowledge"];
+const dynamicCategories = ref<string[]>([]);
+const categoriesLoaded = ref(false);
+
+async function loadCategories() {
+  try {
+    const { data } = await fetchSkillCategories();
+    const list = data.items ?? [];
+    if (list.length > 0) {
+      dynamicCategories.value = list;
+    } else {
+      dynamicCategories.value = DEFAULT_CATEGORIES;
+    }
+    categoriesLoaded.value = true;
+  } catch {
+    // fallback 到默认分类
+    dynamicCategories.value = DEFAULT_CATEGORIES;
+    categoriesLoaded.value = true;
+  }
+}
+
+onMounted(() => {
+  void loadCategories();
+});
 
 function skillCategoryLabel(skill: Skill) {
   return skill.category && skill.category.trim() ? skill.category : "—";
@@ -50,6 +77,7 @@ async function loadPage() {
       category: cat || undefined,
       sort: sortBy.value,
       search: debouncedSearch.value || undefined,
+      author: debouncedAuthor.value || undefined,
     });
     items.value = data.items;
     total.value = data.total;
@@ -67,7 +95,18 @@ watch(query, (_q, _o, onCleanup) => {
   onCleanup(() => clearTimeout(tid));
 });
 
+watch(authorFilter, (_q, _o, onCleanup) => {
+  const tid = window.setTimeout(() => {
+    debouncedAuthor.value = authorFilter.value.trim();
+  }, 300);
+  onCleanup(() => clearTimeout(tid));
+});
+
 watch(debouncedSearch, () => {
+  page.value = 1;
+});
+
+watch(debouncedAuthor, () => {
   page.value = 1;
 });
 
@@ -76,7 +115,7 @@ watch([categoryFilter, sortBy], () => {
 });
 
 watch(
-  [categoryFilter, sortBy, page, debouncedSearch],
+  [categoryFilter, sortBy, page, debouncedSearch, debouncedAuthor],
   () => {
     void loadPage();
   },
@@ -92,8 +131,10 @@ function text(key: string) {
     headline: "发现 AI 技能",
     sub: "浏览已上架的技能，搜索并安装到你的工作流",
     searchPh: "搜索技能名称或简介…",
+    authorPh: "按作者筛选…",
     empty: "暂无符合条件的 Skill",
     category: "分类",
+    author: "作者",
     sort: "排序",
   };
   return map[key] ?? key;
@@ -126,18 +167,27 @@ function text(key: string) {
           <span class="filter-label">{{ text("category") }}</span>
           <el-radio-group v-model="categoryFilter" class="cat-radio-group" size="large">
             <el-radio-button label="">全部</el-radio-button>
-            <el-radio-button label="productivity">productivity</el-radio-button>
-            <el-radio-button label="security">security</el-radio-button>
-            <el-radio-button label="support">support</el-radio-button>
-            <el-radio-button label="knowledge">knowledge</el-radio-button>
-            <el-radio-button label="other">其他</el-radio-button>
+            <el-radio-button v-for="cat in dynamicCategories" :key="cat" :label="cat">
+              {{ cat }}
+            </el-radio-button>
           </el-radio-group>
+        </div>
+        <div class="filter-block">
+          <span class="filter-label">{{ text("author") }}</span>
+          <el-input
+            v-model="authorFilter"
+            class="author-input"
+            clearable
+            size="large"
+            :placeholder="text('authorPh')"
+          />
         </div>
         <div class="filter-block sort-block">
           <span class="filter-label">{{ text("sort") }}</span>
           <el-select v-model="sortBy" class="sort-select" placeholder="排序">
             <el-option label="最新上架" value="newest" />
-            <el-option label="名称排序" value="popular" />
+            <el-option label="名称排序" value="name" />
+            <el-option label="热门优先" value="install_count" />
           </el-select>
         </div>
       </div>
@@ -275,6 +325,15 @@ function text(key: string) {
 .filter-label {
   font-size: 12px;
   color: var(--app-muted);
+}
+
+.author-input {
+  width: 180px;
+}
+
+.author-input :deep(.el-input__wrapper) {
+  min-height: 40px;
+  border-radius: var(--radius-control);
 }
 
 .cat-radio-group :deep(.el-radio-button__inner) {
@@ -419,5 +478,15 @@ function text(key: string) {
   display: flex;
   justify-content: center;
   margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .author-input {
+    width: 100%;
+  }
+
+  .sort-block {
+    margin-left: 0;
+  }
 }
 </style>
