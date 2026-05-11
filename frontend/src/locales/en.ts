@@ -189,6 +189,10 @@ const en: Record<string, string> = {
   'admin.dialog.rejectPlaceholder': 'Rejection reason…',
   'admin.dialog.rejectConfirm': 'Confirm Reject',
   'admin.dialog.cancel': 'Cancel',
+  'admin.dialog.deprecateTitle': 'Deprecate Skill',
+  'admin.dialog.deprecateHint': 'Provide a reason. The skill will be marked as deprecated.',
+  'admin.dialog.deprecatePlaceholder': 'Deprecation reason…',
+  'admin.dialog.deprecateConfirm': 'Confirm deprecation',
   'admin.warn.noOfflineReason': 'Please provide an offline reason',
   'admin.warn.noRejectReason': 'Please provide a rejection reason',
   'admin.offline.fail': 'Failed to offline',
@@ -197,6 +201,9 @@ const en: Record<string, string> = {
   'admin.reject.fail': 'Rejection failed',
   'admin.approve.fail': 'Approval failed',
   'admin.loadFail': 'Failed to load app list',
+  'admin.action.deprecate': 'Deprecate',
+  'admin.warnDeprecateReason': 'Reason required',
+  'admin.errDeprecate': 'Deprecation failed',
 
   // === SubmitView ===
   'submit.title': 'Submit App',
@@ -245,6 +252,7 @@ const en: Record<string, string> = {
   'detail.submitTime': 'Submit time: ',
   'detail.scan.pending': 'Pending Scan',
   'detail.loadFail': 'Failed to load details (no permission or not logged in)',
+  'detail.errLoad': 'Failed to load details (no permission or not logged in)',
 
   // === ExploreView ===
   'explore.title': 'App Market',
@@ -381,6 +389,9 @@ Object.assign(en, {
   'explore.errLoad': 'Failed to load marketplace',
   'explore.noDesc': '(No description)',
   'explore.authorPrefix': 'Author: ',
+  'explore.author': 'Author',
+  'explore.deprecatedBadge': 'Deprecated',
+  'explore.sort': 'Sort',
 
   'dashboard.errLoad': 'Failed to load dashboard data',
   'dashboard.needAdmin': 'Admin access required',
@@ -450,6 +461,9 @@ Object.assign(en, {
   'submit.descPh': 'Capabilities, data sources, notices',
   'submit.categoryLabel': 'Category',
   'submit.categoryPh': 'Select category',
+  'submit.namespaceLabel': 'Namespace (optional)',
+  'submit.namespacePh': 'e.g. myteam',
+  'submit.namespaceHint': 'Namespace distinguishes skills from different teams. Can also be auto-filled via skill.json in the ZIP.',
   'submit.next': 'Next',
   'submit.prev': 'Back',
   'submit.uploadTitle': 'Drag a file here or click to upload',
@@ -514,6 +528,18 @@ Object.assign(en, {
   'detail.layerSemgrep': 'Semgrep static scan',
   'detail.layerClamav': 'ClamAV malware scan',
   'detail.layerLlm': 'LLM semantic scan',
+  'detail.deprecatedBadge': 'Deprecated',
+  'detail.deprecatedNotice': 'This skill has been deprecated',
+  'detail.linkHomepage': 'Homepage',
+  'detail.linkRepository': 'Repository',
+  'detail.versionsTitle': 'Version History',
+  'detail.versionsNeedLogin': 'Please login to view version history',
+  'detail.versionsDownload': 'Download',
+  'detail.versionsColVersion': 'Version',
+  'detail.versionsColPackage': 'Package',
+  'detail.versionsColChangelog': 'Changelog',
+  'detail.versionsColCreated': 'Created',
+  'detail.versionsColAuthor': 'Author',
 
   'flow.stepUpload': 'Upload',
   'flow.stepScan': 'Scanning',
@@ -533,6 +559,9 @@ Object.assign(en, {
   'skillStatus.rejected': 'Rejected',
   'skillStatus.pending_review': 'Pending review',
   'skillStatus.draft': 'Draft',
+  'skillStatus.deprecated': 'Deprecated',
+
+  'flow.noteDeprecated': 'This Skill has been deprecated and is no longer recommended.',
 
   'admin.tabAll': 'All',
   'admin.searchPh': 'Search name or description…',

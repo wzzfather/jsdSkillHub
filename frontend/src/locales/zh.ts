@@ -189,6 +189,10 @@ const zh: Record<string, string> = {
   'admin.dialog.rejectPlaceholder': '驳回原因…',
   'admin.dialog.rejectConfirm': '确认驳回',
   'admin.dialog.cancel': '取消',
+  'admin.dialog.deprecateTitle': '弃用技能',
+  'admin.dialog.deprecateHint': '请填写弃用原因，提交后技能将变为已弃用状态。',
+  'admin.dialog.deprecatePlaceholder': '弃用原因…',
+  'admin.dialog.deprecateConfirm': '确认弃用',
   'admin.warn.noOfflineReason': '请填写下架原因',
   'admin.warn.noRejectReason': '请填写驳回原因',
   'admin.offline.fail': '下架失败',
@@ -197,6 +201,9 @@ const zh: Record<string, string> = {
   'admin.reject.fail': '驳回失败',
   'admin.approve.fail': '审批通过失败',
   'admin.loadFail': '加载应用列表失败',
+  'admin.action.deprecate': '弃用',
+  'admin.warnDeprecateReason': '请填写弃用原因',
+  'admin.errDeprecate': '弃用失败',
 
   // === SubmitView ===
   'submit.title': '提交应用',
@@ -245,6 +252,7 @@ const zh: Record<string, string> = {
   'detail.submitTime': '提交时间：',
   'detail.scan.pending': '待扫描',
   'detail.loadFail': '无法加载详情（可能没有权限或未登录）',
+  'detail.errLoad': '无法加载详情（可能没有权限或未登录）',
 
   // === ExploreView ===
   'explore.title': '应用市场',
@@ -377,6 +385,9 @@ Object.assign(zh, {
   'explore.errLoad': '加载市场列表失败',
   'explore.noDesc': '（无简介）',
   'explore.authorPrefix': '作者：',
+  'explore.author': '作者',
+  'explore.deprecatedBadge': '已弃用',
+  'explore.sort': '排序',
 
   'dashboard.errLoad': '加载看板数据失败',
   'dashboard.needAdmin': '需要管理员权限',
@@ -445,6 +456,9 @@ Object.assign(zh, {
   'submit.descPh': '能力说明、数据来源、注意事项',
   'submit.categoryLabel': '分类',
   'submit.categoryPh': '选择分类',
+  'submit.namespaceLabel': '命名空间（可选）',
+  'submit.namespacePh': '例如：myteam',
+  'submit.namespaceHint': '命名空间用于区分不同团队的技能，也可在 ZIP 包中放入 skill.json 自动填充',
   'submit.next': '下一步',
   'submit.prev': '上一步',
   'submit.uploadTitle': '拖拽文件到此处或点击上传',
@@ -509,6 +523,18 @@ Object.assign(zh, {
   'detail.layerSemgrep': 'Semgrep 静态扫描',
   'detail.layerClamav': 'ClamAV 恶意文件扫描',
   'detail.layerLlm': 'LLM 语义分析',
+  'detail.deprecatedBadge': '已弃用',
+  'detail.deprecatedNotice': '该技能已被标记为弃用',
+  'detail.linkHomepage': '主页',
+  'detail.linkRepository': '代码仓库',
+  'detail.versionsTitle': '版本历史',
+  'detail.versionsNeedLogin': '请登录后查看版本历史',
+  'detail.versionsDownload': '下载',
+  'detail.versionsColVersion': '版本',
+  'detail.versionsColPackage': '安装包',
+  'detail.versionsColChangelog': '更新日志',
+  'detail.versionsColCreated': '创建时间',
+  'detail.versionsColAuthor': '上传者',
 
   'flow.stepUpload': '上传',
   'flow.stepScan': '扫描中',
@@ -528,6 +554,9 @@ Object.assign(zh, {
   'skillStatus.rejected': '已驳回',
   'skillStatus.pending_review': '待审批',
   'skillStatus.draft': '草稿',
+  'skillStatus.deprecated': '已弃用',
+
+  'flow.noteDeprecated': '该 Skill 已被弃用，不再推荐使用。',
 
   'admin.tabAll': '全部',
   'admin.searchPh': '搜索技能名称或描述…',
