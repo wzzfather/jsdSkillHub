@@ -1,5 +1,13 @@
 import { api } from "./client";
-import type { ActionResponse, DownloadResponse, Paginated, Skill, SkillAdmin, SkillDetail } from "./types";
+import type {
+  ActionResponse,
+  DownloadResponse,
+  Paginated,
+  Skill,
+  SkillAdmin,
+  SkillDetail,
+  SkillVersion,
+} from "./types";
 
 export async function fetchSkills(params?: {
   status?: string;
@@ -34,6 +42,16 @@ export async function fetchMySkills(params?: { page?: number; page_size?: number
 
 export async function fetchSkillDetail(id: string) {
   return api.get<SkillDetail>(`/skills/${id}`);
+}
+
+export async function fetchSkillVersions(skillId: string): Promise<SkillVersion[]> {
+  const { data } = await api.get<SkillVersion[]>(`/skills/${skillId}/versions`);
+  return data;
+}
+
+export async function deprecateSkill(skillId: string, message: string): Promise<ActionResponse> {
+  const { data } = await api.post<ActionResponse>(`/skills/${skillId}/deprecate`, { message });
+  return data;
 }
 
 export async function uploadSkill(form: FormData) {

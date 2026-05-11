@@ -3,7 +3,7 @@ import { ref, watch, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Search } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { fetchAdminSkills, fetchSkillCategories, offlineSkill, republishSkill } from "@/api/skills";
+import { fetchAdminSkills, fetchSkillCategories, offlineSkill, republishSkill, deprecateSkill } from "@/api/skills";
 import { approveSkill, rejectSkill } from "@/api/reviews";
 import type { SkillAdmin } from "@/api/types";
 import { useLocale } from "@/locales";
@@ -17,7 +17,7 @@ const rows = ref<SkillAdmin[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
-const statusFilter = ref<"" | "scanning" | "pending_review" | "published" | "offline" | "rejected">("");
+const statusFilter = ref<"" | "scanning" | "pending_review" | "published" | "deprecated" | "offline" | "rejected">("");
 
 // 新增筛选
 const searchQuery = ref("");
@@ -35,6 +35,11 @@ const offlineVisible = ref(false);
 const offlineReason = ref("");
 const offlineTarget = ref<SkillAdmin | null>(null);
 
+// 弃用对话框
+const deprecateVisible = ref(false);
+const deprecateMessage = ref("");
+const deprecateTarget = ref<SkillAdmin | null>(null);
+
 // 驳回对话框
 const rejectVisible = ref(false);
 const rejectReason = ref("");
@@ -49,6 +54,7 @@ const statusTabs = computed(() => [
   { key: "scanning" as const, label: t("skillStatus.scanning") },
   { key: "pending_review" as const, label: t("skillStatus.pending_review_admin") },
   { key: "published" as const, label: t("skillStatus.published") },
+  { key: "deprecated" as const, label: t("skillStatus.deprecated") },
   { key: "offline" as const, label: t("skillStatus.offline") },
   { key: "rejected" as const, label: t("skillStatus.rejected") },
 ]);
@@ -90,6 +96,7 @@ function statusLabel(s: string) {
     scanning: "skillStatus.scanning",
     pending_review: "skillStatus.pending_review_admin",
     published: "skillStatus.published",
+    deprecated: "skillStatus.deprecated",
     offline: "skillStatus.offline",
     rejected: "skillStatus.rejected",
   };
@@ -101,6 +108,7 @@ function statusTagType(s: string): "success" | "warning" | "info" | "danger" {
   if (s === "scanning") return "warning";
   if (s === "pending_review") return "info";
   if (s === "published") return "success";
+  if (s === "deprecated") return "warning";
   if (s === "offline" || s === "rejected") return "danger";
   return "info";
 }
@@ -160,6 +168,31 @@ async function onRepublish(row: SkillAdmin) {
     await reload();
   } catch {
     ElMessage.error(t("admin.errRepublish"));
+  }
+}
+
+function openDeprecate(row: SkillAdmin) {
+  deprecateTarget.value = row;
+  deprecateMessage.value = "";
+  deprecateVisible.value = true;
+}
+
+async function confirmDeprecate() {
+  const row = deprecateTarget.value;
+  if (!row) return;
+  const msg = deprecateMessage.value.trim();
+  if (!msg) {
+    ElMessage.warning(t("admin.warnDeprecateReason"));
+    return;
+  }
+  try {
+    const data = await deprecateSkill(row.id, msg);
+    ElMessage.success(data.message);
+    deprecateVisible.value = false;
+    deprecateTarget.value = null;
+    await reload();
+  } catch {
+    ElMessage.error(t("admin.errDeprecate"));
   }
 }
 
@@ -320,10 +353,11 @@ watch(
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('admin.col.action')" width="260" fixed="right">
+        <el-table-column :label="t('admin.col.action')" width="320" fixed="right">
           <template #default="{ row }">
             <!-- published -->
             <template v-if="row.status === 'published'">
+              <el-button type="warning" size="small" plain @click="openDeprecate(row)">{{ t("admin.action.deprecate") }}</el-button>
               <el-button type="danger" size="small" plain @click="openOffline(row)">{{ t("admin.action.offline") }}</el-button>
               <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
@@ -349,6 +383,10 @@ watch(
               </el-button>
               <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
             </template>
+            <!-- deprecated -->
+            <template v-else-if="row.status === 'deprecated'">
+              <el-button size="small" plain @click="goDetail(row)">{{ t("admin.action.view") }}</el-button>
+            </template>
             <!-- offline -->
             <template v-else-if="row.status === 'offline'">
               <el-button type="success" size="small" plain @click="onRepublish(row)">{{ t("admin.action.republish") }}</el-button>
@@ -372,6 +410,16 @@ watch(
         />
       </div>
     </el-card>
+
+    <!-- 弃用对话框 -->
+    <el-dialog v-model="deprecateVisible" :title="t('admin.dialog.deprecateTitle')" width="520px" destroy-on-close align-center append-to-body>
+      <p class="muted dialog-hint">{{ t("admin.dialog.deprecateHint") }}</p>
+      <el-input v-model="deprecateMessage" type="textarea" :rows="4" :placeholder="t('admin.dialog.deprecatePlaceholder')" maxlength="2000" show-word-limit />
+      <template #footer>
+        <el-button @click="deprecateVisible = false">{{ t("admin.dialog.cancel") }}</el-button>
+        <el-button type="warning" @click="confirmDeprecate">{{ t("admin.dialog.deprecateConfirm") }}</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 下架对话框 -->
     <el-dialog v-model="offlineVisible" :title="t('admin.dialog.offlineTitle')" width="520px" destroy-on-close align-center append-to-body>

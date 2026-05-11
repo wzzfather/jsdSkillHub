@@ -57,6 +57,15 @@ function authorLabel(skill: Skill) {
   return id.length <= 12 ? id : `…${id.slice(-10)}`;
 }
 
+function skillCardTitle(skill: Skill) {
+  const ns = skill.namespace?.trim();
+  return ns ? `${ns}/${skill.name}` : skill.name;
+}
+
+function skillIsDeprecated(skill: Skill) {
+  return skill.status === "deprecated" || !!skill.deprecated_at;
+}
+
 function heroToneClass(cat: string | null | undefined) {
   const c = (cat ?? "").trim().toLowerCase();
   if (c === "productivity") return "tone-productivity";
@@ -199,7 +208,8 @@ function heroStat(): string {
           @keydown.enter.prevent="goDetail(s)"
         >
           <div class="skill-hero" :class="heroToneClass(s.category)">
-            <svg class="hero-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <img v-if="s.icon_url" class="hero-icon-img" :src="s.icon_url" alt="" />
+            <svg v-else class="hero-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="currentColor"
                 d="M12 2l7 4v8l-7 4-7-4V6l7-4zm0 2.2L6.5 7.1v6.3L12 17l5.5-3.6V7.1L12 4.2z"
@@ -208,8 +218,9 @@ function heroStat(): string {
             </svg>
           </div>
           <div class="skill-body">
-            <div class="name">{{ s.name }}</div>
+            <div class="name">{{ skillCardTitle(s) }}</div>
             <div class="tags-row">
+              <el-tag v-if="skillIsDeprecated(s)" size="small" effect="dark" type="warning">{{ t("explore.deprecatedBadge") }}</el-tag>
               <el-tag size="small" effect="plain" type="info">v{{ s.version }}</el-tag>
               <el-tag size="small" effect="light" type="info">{{ skillCategoryLabel(s) }}</el-tag>
             </div>
@@ -422,6 +433,14 @@ function heroStat(): string {
 .tone-other,
 .tone-default {
   background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+.hero-icon-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.35);
 }
 
 .hero-icon {

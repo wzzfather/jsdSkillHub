@@ -24,6 +24,7 @@ const form = reactive({
   description: "",
   version: "1.0.0",
   category: "" as string,
+  namespace: "",
 });
 
 const step = ref(0);
@@ -59,6 +60,7 @@ function pipeStatusLabel(code: string) {
     scanning: "skillStatus.scanning",
     pending_review: "skillStatus.pending_review",
     published: "skillStatus.published",
+    deprecated: "skillStatus.deprecated",
     rejected: "skillStatus.rejected",
     offline: "skillStatus.offline",
     draft: "skillStatus.draft",
@@ -87,6 +89,8 @@ async function handleUpload(opt: UploadRequestOptions) {
     if (form.description.trim()) fd.append("description", form.description.trim());
     const cat = (form.category || "").trim();
     if (cat) fd.append("category", cat);
+    const ns = (form.namespace || "").trim();
+    if (ns) fd.append("namespace", ns);
 
     const { data } = await uploadSkill(fd);
     ElMessage.success(t("submit.msgUploaded"));
@@ -117,6 +121,7 @@ function resetUploadFlow() {
   form.description = "";
   form.version = "1.0.0";
   form.category = "";
+  form.namespace = "";
   step.value = 0;
 }
 
@@ -165,11 +170,19 @@ onUnmounted(() => stopPoll());
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="12">
+            <el-form-item :label="t('submit.namespaceLabel')">
+              <el-input v-model="form.namespace" :placeholder="t('submit.namespacePh')" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :md="12">
             <el-form-item :label="t('submit.categoryLabel')">
               <el-select v-model="form.category" clearable :placeholder="t('submit.categoryPh')">
                 <el-option v-for="c in categoryOptions" :key="c.value" :label="c.label" :value="c.value" />
               </el-select>
             </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <p class="muted namespace-hint">{{ t("submit.namespaceHint") }}</p>
           </el-col>
         </el-row>
         <el-button type="primary" class="cta" size="large" @click="nextStep">{{ t("submit.next") }}</el-button>
@@ -288,6 +301,12 @@ onUnmounted(() => stopPoll());
 
 .cta {
   margin-top: 8px;
+}
+
+.namespace-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .uploader {

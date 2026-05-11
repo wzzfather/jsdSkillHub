@@ -8,7 +8,22 @@ export interface Skill {
   category: string | null;
   package_url: string | null;
   offline_comment: string | null;
+  namespace: string | null;
+  tags: string[] | null;
+  homepage_url: string | null;
+  repository_url: string | null;
+  icon_url: string | null;
+  status_message: string | null;
+  deprecated_at: string | null;
   created_at: string;
+}
+
+export interface SkillVersion {
+  version: string;
+  package_url: string | null;
+  changelog: string | null;
+  created_at: string;
+  created_by: string | null;
 }
 
 export interface ScanLayer {
