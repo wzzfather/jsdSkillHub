@@ -1,5 +1,7 @@
-from sqlalchemy import ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from datetime import datetime
+
+from sqlalchemy import ARRAY, DateTime, ForeignKey, String, Text, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -21,6 +23,18 @@ class Skill(Base, TimestampMixin):
     category: Mapped[str | None] = mapped_column(String(128), nullable=True)
     package_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     offline_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    namespace: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tags: Mapped[list[str] | None] = mapped_column(
+        ARRAY(Text),
+        nullable=True,
+        server_default=text("'{}'"),
+    )
+    homepage_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    repository_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    metadata_json: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
+    status_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deprecated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     author = relationship("User", back_populates="skills_authored")
     versions = relationship("SkillVersion", back_populates="skill", cascade="all, delete-orphan")

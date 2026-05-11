@@ -107,12 +107,20 @@ class SkillResponse(BaseModel):
     category: str | None
     package_url: str | None
     offline_comment: str | None = None
+    namespace: str | None = None
+    tags: list[str] | None = None
+    homepage_url: str | None = None
+    repository_url: str | None = None
+    icon_url: str | None = None
+    status_message: str | None = None
+    deprecated_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class SkillDetailResponse(SkillResponse):
+    metadata_json: dict | list | None = None
     scans: list[ScanLayerSummary] = []
 
 

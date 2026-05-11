@@ -496,5 +496,5 @@ async def get_skill(
         )
         for s in sorted(skill.scan_results, key=lambda x: x.scan_type)
     ]
-    base = SkillResponse.model_validate(skill)
-    return SkillDetailResponse(**base.model_dump(), scans=scans)
+    detail = SkillDetailResponse.model_validate(skill)
+    return detail.model_copy(update={"scans": scans})
