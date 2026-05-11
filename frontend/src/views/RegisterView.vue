@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { register } from "@/api/auth";
+import { getCaptchaImage, register } from "@/api/auth";
 import { useAuthStore } from "@/stores/auth";
 import { useLocale } from "@/locales";
 
@@ -15,9 +15,38 @@ const form = reactive({
   email: "",
   password: "",
   confirm: "",
+  captchaId: "",
+  captchaCode: "",
 });
 
 const loading = ref(false);
+const captchaLoading = ref(false);
+const captchaImageSrc = ref("");
+
+function isCaptchaInvalidError(err: unknown): boolean {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  return typeof detail === "object" && detail !== null && (detail as { code?: string }).code === "CAPTCHA_INVALID";
+}
+
+async function loadCaptcha() {
+  captchaLoading.value = true;
+  try {
+    const { data } = await getCaptchaImage();
+    form.captchaId = data.captcha_id;
+    form.captchaCode = "";
+    captchaImageSrc.value = `data:image/png;base64,${data.image}`;
+  } catch {
+    ElMessage.error(t("register.failUnknown"));
+    captchaImageSrc.value = "";
+    form.captchaId = "";
+  } finally {
+    captchaLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadCaptcha();
+});
 
 async function onSubmit() {
   if (!form.username.trim()) {
@@ -37,11 +66,22 @@ async function onSubmit() {
     ElMessage.warning(t("register.warnEmailShort"));
     return;
   }
+  if (!form.captchaCode.trim()) {
+    ElMessage.warning(t("register.captchaPlaceholder"));
+    return;
+  }
+  if (!form.captchaId) {
+    ElMessage.warning(t("register.failUnknown"));
+    await loadCaptcha();
+    return;
+  }
   loading.value = true;
   try {
     const { data } = await register({
       username: form.username.trim(),
       password: form.password,
+      captcha_id: form.captchaId,
+      captcha_code: form.captchaCode.trim(),
       ...(emailTrim ? { email: emailTrim } : {}),
     });
     ElMessage.success(t("register.ok"));
@@ -51,10 +91,13 @@ async function onSubmit() {
       await auth.login({ username: form.username.trim(), password: form.password });
       await router.replace("/explore");
     }
-  } catch (err: any) {
-    const status = err?.response?.status;
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
     if (status === 409) {
       ElMessage.error(t("register.fail"));
+    } else if (status === 422 && isCaptchaInvalidError(err)) {
+      ElMessage.error(t("register.captchaInvalid"));
+      await loadCaptcha();
     } else if (status === 422) {
       ElMessage.error(t("register.warnInvalid"));
     } else {
@@ -100,6 +143,27 @@ async function onSubmit() {
         </el-form-item>
         <el-form-item :label="t('register.fieldConfirm')">
           <el-input v-model="form.confirm" class="auth-input" type="password" autocomplete="new-password" />
+        </el-form-item>
+        <el-form-item :label="t('register.captcha')">
+          <div class="captcha-row">
+            <el-input
+              v-model="form.captchaCode"
+              class="auth-input captcha-input"
+              autocomplete="off"
+              :placeholder="t('register.captchaPlaceholder')"
+              :disabled="captchaLoading"
+            />
+            <button
+              type="button"
+              class="captcha-img-wrap"
+              :disabled="captchaLoading"
+              :aria-label="t('register.captcha')"
+              @click="loadCaptcha"
+            >
+              <img v-if="captchaImageSrc" class="captcha-img" :src="captchaImageSrc" alt="" />
+              <span v-else class="captcha-placeholder muted">{{ captchaLoading ? "…" : "—" }}</span>
+            </button>
+          </div>
         </el-form-item>
         <el-button type="primary" class="auth-submit" native-type="submit" :loading="loading">{{ t("register.submit") }}</el-button>
         <div class="foot muted">
@@ -205,5 +269,53 @@ async function onSubmit() {
 
 .link-btn {
   font-weight: 600;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.captcha-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.captcha-img-wrap {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.captcha-img-wrap:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.captcha-img {
+  display: block;
+  width: 100%;
+  height: 44px;
+  object-fit: contain;
+}
+
+.captcha-placeholder {
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--app-muted);
 }
 </style>

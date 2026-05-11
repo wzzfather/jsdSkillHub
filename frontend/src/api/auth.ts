@@ -1,11 +1,27 @@
 import { api } from "./client";
 import type { UserPublic, SendCodeResponse } from "./types";
 
+export interface CaptchaImageResponse {
+  captcha_id: string;
+  image: string;
+}
+
 export async function login(payload: { username?: string; email?: string; password: string }) {
   return api.post<{ access_token: string; token_type: string }>("/auth/login", payload);
 }
 
-export async function register(payload: { username: string; password: string; email?: string | null }) {
+/** GET /api/captcha/image — image 为 PNG 的裸 base64（前端需加 data URL 前缀） */
+export async function getCaptchaImage() {
+  return api.get<CaptchaImageResponse>("/captcha/image");
+}
+
+export async function register(payload: {
+  username: string;
+  password: string;
+  email?: string | null;
+  captcha_id: string;
+  captcha_code: string;
+}) {
   return api.post<UserPublic>("/auth/register", payload);
 }
 

@@ -420,6 +420,9 @@ Object.assign(en, {
   'register.ok': 'Account created',
   'register.fail': 'Username or email already taken',
   'register.failUnknown': 'Registration failed, please try again later',
+  'register.captcha': 'Captcha',
+  'register.captchaPlaceholder': 'Enter the captcha',
+  'register.captchaInvalid': 'Invalid or expired captcha',
 
   'verify.warnNoEmail': 'Missing email. Please start from the sign-up page.',
   'verify.okCode': 'Code generated (MVP: check the browser console)',

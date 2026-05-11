@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies import create_access_token
 from app.models.user import User
 from app.services.audit_service import log_action
+from app.routers.captcha import verify_captcha
 from app.schemas.common import (
     LoginRequest,
     RegisterRequest,
@@ -40,6 +41,11 @@ async def register(
     body: RegisterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
+    if not verify_captcha(body.captcha_id, body.captcha_code):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"detail": "验证码错误或已过期", "code": "CAPTCHA_INVALID"},
+        )
     existing = await db.scalar(select(User).where(User.username == body.username))
     if existing:
         raise HTTPException(

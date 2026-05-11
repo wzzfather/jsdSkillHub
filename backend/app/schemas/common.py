@@ -42,6 +42,8 @@ class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=6, max_length=128)
     email: EmailStr | None = None
+    captcha_id: str = Field(min_length=1, description="图形验证码 ID")
+    captcha_code: str = Field(min_length=1, description="图形验证码")
 
     @field_validator("email", mode="before")
     @classmethod

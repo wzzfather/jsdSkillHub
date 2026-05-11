@@ -416,6 +416,9 @@ Object.assign(zh, {
   'register.ok': '注册成功',
   'register.fail': '用户名或邮箱已被占用',
   'register.failUnknown': '注册失败，请稍后重试',
+  'register.captcha': '验证码',
+  'register.captchaPlaceholder': '请输入验证码',
+  'register.captchaInvalid': '验证码错误或已过期',
 
   'verify.warnNoEmail': '缺少邮箱参数，请从注册页进入',
   'verify.okCode': '验证码已生成（MVP：请打开浏览器控制台查看模拟邮件）',
