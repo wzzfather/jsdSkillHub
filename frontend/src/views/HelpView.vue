@@ -17,6 +17,7 @@ async function copyText(text: string) {
 
 const commandRows = computed(() =>
   [
+    { cmdKey: "help.cmd.upgrade", descKey: "help.desc.upgrade" },
     { cmdKey: "help.cmd.login", descKey: "help.desc.login" },
     { cmdKey: "help.cmd.search", descKey: "help.desc.search" },
     { cmdKey: "help.cmd.install", descKey: "help.desc.install" },
@@ -24,6 +25,7 @@ const commandRows = computed(() =>
     { cmdKey: "help.cmd.update", descKey: "help.desc.update" },
     { cmdKey: "help.cmd.uninstall", descKey: "help.desc.uninstall" },
     { cmdKey: "help.cmd.info", descKey: "help.desc.info" },
+    { cmdKey: "help.cmd.configSet", descKey: "help.desc.configSet" },
     { cmdKey: "help.cmd.configShow", descKey: "help.desc.configShow" },
   ].map((row) => ({
     cmd: t(row.cmdKey),
@@ -51,6 +53,7 @@ const commandRows = computed(() =>
         </el-button>
         <pre class="code-pre"><code>{{ t("help.cmd.pip") }}</code></pre>
       </div>
+      <p class="help-note">{{ t("help.install.afterCmd") }}</p>
 
       <p class="help-text">{{ t("help.install.intranet") }}</p>
 
@@ -60,6 +63,7 @@ const commandRows = computed(() =>
         </el-button>
         <pre class="code-pre"><code>{{ t("help.cmd.gitpip") }}</code></pre>
       </div>
+      <p class="help-note">{{ t("help.install.afterCmd") }}</p>
     </el-card>
 
     <el-divider />
@@ -80,6 +84,9 @@ const commandRows = computed(() =>
         </el-button>
         <pre class="code-pre"><code>{{ t("help.cmd.configLan") }}</code></pre>
       </div>
+      <el-alert type="success" :closable="false" :show-icon="false" class="help-alert help-alert-config">
+        {{ t("help.config.saved") }}
+      </el-alert>
 
       <p class="label-strong">{{ t("help.config.pubLabel") }}</p>
       <div class="code-wrap">
@@ -88,6 +95,9 @@ const commandRows = computed(() =>
         </el-button>
         <pre class="code-pre"><code>{{ t("help.cmd.configPub") }}</code></pre>
       </div>
+      <el-alert type="success" :closable="false" :show-icon="false" class="help-alert help-alert-config">
+        {{ t("help.config.saved") }}
+      </el-alert>
     </el-card>
 
     <el-divider />
@@ -153,6 +163,17 @@ const commandRows = computed(() =>
   font-size: 14px;
   line-height: 1.6;
   color: var(--app-text);
+}
+
+.help-note {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--app-muted);
+}
+
+.help-alert-config {
+  margin-bottom: 16px;
 }
 
 .label-strong {

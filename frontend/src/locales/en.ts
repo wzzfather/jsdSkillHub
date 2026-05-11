@@ -324,32 +324,40 @@ const en: Record<string, string> = {
   'help.prereq': 'Prerequisites: Python 3.10 or newer and pip.',
   'help.install.intranet':
     'If you are on an intranet and cannot reach PyPI, install the CLI from GitHub:',
+  'help.install.afterCmd': 'After installation, you can use the jsdhub command in the terminal.',
   'help.config.note':
     'Replace the example host in the commands below with your actual store URL (IP, port, or domain).',
   'help.config.lanLabel': 'LAN example',
   'help.config.pubLabel': 'Public HTTPS example',
+  'help.config.saved': 'Config saved to ~/.jsdhub/config.json',
 
   'help.cmd.pip': 'pip install jsdhub',
   'help.cmd.gitpip': 'pip install git+https://github.com/wzzfather/jsdSkillHub.git@master#subdirectory=skillhub-cli',
   'help.cmd.configLan': 'jsdhub config-set server http://YOUR_SERVER_IP:8000',
   'help.cmd.configPub': 'jsdhub config-set server https://YOUR_DOMAIN',
 
+  'help.cmd.upgrade': 'pip install --upgrade jsdhub',
   'help.cmd.login': 'jsdhub login',
-  'help.cmd.search': 'jsdhub search <keyword>',
+  'help.cmd.search': 'jsdhub search [keyword]',
   'help.cmd.install': 'jsdhub install <name>',
   'help.cmd.list': 'jsdhub list',
   'help.cmd.update': 'jsdhub update <name>',
   'help.cmd.uninstall': 'jsdhub uninstall <name>',
   'help.cmd.info': 'jsdhub info <name>',
+  'help.cmd.configSet': 'jsdhub config-set server <address>',
   'help.cmd.configShow': 'jsdhub config-show',
 
-  'help.desc.login': 'Sign in to the Skill Store.',
-  'help.desc.search': 'Search installable Skills by keyword.',
+  'help.desc.upgrade': 'Upgrade jsdhub CLI to the latest version.',
+  'help.desc.login':
+    'Login to store (interactive username/password, token saved to ~/.jsdhub/config.json).',
+  'help.desc.search':
+    'Search Skills by keyword. Lists all published Skills if no keyword provided.',
   'help.desc.install': 'Install a Skill into ~/.openclaw/skills/.',
   'help.desc.list': 'List Skills installed on this machine.',
   'help.desc.update': 'Update an installed Skill to the latest published version.',
   'help.desc.uninstall': 'Remove an installed Skill.',
   'help.desc.info': 'Show detailed information for a Skill.',
+  'help.desc.configSet': 'Set store server address (LAN IP or public domain).',
   'help.desc.configShow': 'Show current CLI configuration (including store URL).',
 };
 
