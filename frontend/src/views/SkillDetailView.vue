@@ -2,8 +2,8 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
-import { downloadSkill, fetchSkillDetail, installSkill, installSkillNpm } from "@/api/skills";
+import { ElMessage, type InputInstance } from "element-plus";
+import { downloadSkill, fetchSkillDetail } from "@/api/skills";
 import type { ScanLayer, SkillDetail } from "@/api/types";
 import { useLocale } from "@/locales";
 
@@ -12,14 +12,8 @@ const props = defineProps<{ id: string }>();
 const router = useRouter();
 const { t } = useLocale();
 const loading = ref(false);
-const installingZip = ref(false);
-const installingNpm = ref(false);
 const detail = ref<SkillDetail | null>(null);
 const cliInstallInputRef = ref<InputInstance>();
-
-/** 最近一次安装结果（持久展示路径） */
-const lastInstallZip = ref<{ message: string; path: string } | null>(null);
-const lastInstallNpm = ref<{ message: string; path: string; npm_installed: boolean } | null>(null);
 
 function formatTime(iso?: string | null) {
   if (!iso) return t("common.emDash");
@@ -173,63 +167,6 @@ async function onDownloadZip() {
   }
 }
 
-async function onInstallZip() {
-  if (!detail.value) return;
-  try {
-    await ElMessageBox.confirm(
-      t("detail.confirmZipMsg"),
-      t("detail.confirmZipTitle"),
-      {
-        type: "warning",
-        confirmButtonText: t("common.install"),
-        cancelButtonText: t("common.cancel"),
-      },
-    );
-  } catch {
-    return;
-  }
-  installingZip.value = true;
-  try {
-    const { data } = await installSkill(detail.value.id);
-    lastInstallZip.value = { message: data.message, path: data.path };
-    lastInstallNpm.value = null;
-    ElMessage.success(`${data.message}：${data.path}`);
-  } catch (e) {
-    ElMessage.error(apiErrorDetail(e));
-  } finally {
-    installingZip.value = false;
-  }
-}
-
-async function onInstallNpm() {
-  if (!detail.value) return;
-  try {
-    await ElMessageBox.confirm(
-      t("detail.confirmNpmMsg"),
-      t("detail.confirmNpmTitle"),
-      {
-        type: "warning",
-        confirmButtonText: t("common.install"),
-        cancelButtonText: t("common.cancel"),
-      },
-    );
-  } catch {
-    return;
-  }
-  installingNpm.value = true;
-  try {
-    const { data } = await installSkillNpm(detail.value.id);
-    lastInstallNpm.value = { message: data.message, path: data.path, npm_installed: data.npm_installed };
-    lastInstallZip.value = null;
-    const npmHint = data.npm_installed ? t("detail.npmOkSuffixRan") : t("detail.npmOkSuffixSkip");
-    ElMessage.success(`${data.message}：${data.path} ${npmHint}`);
-  } catch (e) {
-    ElMessage.error(apiErrorDetail(e));
-  } finally {
-    installingNpm.value = false;
-  }
-}
-
 async function load() {
   loading.value = true;
   try {
@@ -282,8 +219,6 @@ onMounted(() => void load());
         <template v-if="detail.status === 'published'">
           <div class="actions">
             <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ t("detail.dlZip") }}</el-button>
-            <el-button size="large" class="act-outline" plain :loading="installingZip" @click="onInstallZip">{{ t("detail.installZip") }}</el-button>
-            <el-button size="large" class="act-outline npm-btn" plain :loading="installingNpm" @click="onInstallNpm">{{ t("detail.installNpm") }}</el-button>
           </div>
 
           <div class="cli-install-block">
@@ -300,33 +235,6 @@ onMounted(() => void load());
               </template>
             </el-input>
           </div>
-
-          <p class="npm-tip muted">{{ t("detail.installNpmTip") }}</p>
-
-          <el-alert
-            v-if="lastInstallZip"
-            class="install-result"
-            type="success"
-            :closable="true"
-            :title="lastInstallZip.message"
-            :description="lastInstallZip.path"
-            show-icon
-            @close="lastInstallZip = null"
-          />
-          <el-alert
-            v-if="lastInstallNpm"
-            class="install-result"
-            type="success"
-            :closable="true"
-            show-icon
-            @close="lastInstallNpm = null"
-          >
-            <template #title>{{ lastInstallNpm.message }}</template>
-            <template #default>
-              <div class="install-path">{{ lastInstallNpm.path }}</div>
-              <div class="muted install-npm-flag">{{ lastInstallNpm.npm_installed ? t("detail.npmRan") : t("detail.npmSkipped") }}</div>
-            </template>
-          </el-alert>
         </template>
       </section>
 
@@ -491,50 +399,10 @@ onMounted(() => void load());
   font-weight: 600;
 }
 
-.npm-tip {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.install-result {
-  margin-top: 14px;
-  border-radius: var(--radius-control);
-}
-
-.install-path {
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
-  word-break: break-all;
-  color: var(--app-text);
-}
-
-.install-npm-flag {
-  margin-top: 6px;
-  font-size: 12px;
-}
-
 .act-pri {
   min-width: 120px;
   font-weight: 600;
   border-radius: var(--radius-control);
-}
-
-.act-outline {
-  border-radius: var(--radius-control);
-  font-weight: 600;
-  border-color: var(--app-primary) !important;
-  color: var(--app-primary) !important;
-  background: var(--app-surface) !important;
-}
-
-.act-outline:hover {
-  background: color-mix(in srgb, var(--app-text) 6%, transparent) !important;
-}
-
-.npm-btn {
-  border-color: var(--app-border-strong) !important;
-  color: var(--app-text) !important;
 }
 
 .section-title {

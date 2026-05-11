@@ -37,12 +37,6 @@ export interface DownloadResponse {
   download_url: string;
 }
 
-export interface InstallResponse {
-  message: string;
-  path: string;
-  npm_installed: boolean;
-}
-
 export interface ReviewPendingItem {
   skill: Skill;
   scans: ScanLayer[];

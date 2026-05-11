@@ -1,13 +1,5 @@
 import { api } from "./client";
-import type {
-  ActionResponse,
-  DownloadResponse,
-  InstallResponse,
-  Paginated,
-  Skill,
-  SkillAdmin,
-  SkillDetail,
-} from "./types";
+import type { ActionResponse, DownloadResponse, Paginated, Skill, SkillAdmin, SkillDetail } from "./types";
 
 export async function fetchSkills(params?: {
   status?: string;
@@ -50,14 +42,6 @@ export async function uploadSkill(form: FormData) {
 
 export async function downloadSkill(id: string) {
   return api.get<DownloadResponse>(`/skills/${id}/download`);
-}
-
-export async function installSkill(id: string) {
-  return api.post<InstallResponse>(`/skills/${id}/install`);
-}
-
-export async function installSkillNpm(id: string) {
-  return api.post<InstallResponse>(`/skills/${id}/install-npm`);
 }
 
 export async function offlineSkill(id: string, comment: string) {
