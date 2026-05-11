@@ -7,6 +7,7 @@ const zh: Record<string, string> = {
   'user.fallbackTitle': '用户',
   'nav.explore': '浏览',
   'nav.docs': '文档',
+  'nav.help': '使用指南',
   'nav.submit': '提交应用',
   'nav.myApps': '我的应用',
   'nav.dashboard': '看板',
@@ -315,6 +316,39 @@ const zh: Record<string, string> = {
   'docs.arch.storage': '对象存储',
   'docs.arch.search': '搜索引擎',
   'docs.arch.security': '安全扫描',
+
+  'help.title': '使用指南',
+  'help.card.install': '安装 jsdhub',
+  'help.card.config': '配置商店地址',
+  'help.card.commands': '常用命令',
+  'help.prereq': '前置条件：Python 3.10 及以上、已安装 pip。',
+  'help.install.intranet': '若处于内网环境且无法访问 PyPI，可从 GitHub 源码安装 CLI：',
+  'help.config.note': '请将命令中的示例地址替换为你实际部署的商店服务地址（IP、端口或域名）。',
+  'help.config.lanLabel': '局域网示例',
+  'help.config.pubLabel': '公网示例',
+
+  'help.cmd.pip': 'pip install jsdhub',
+  'help.cmd.gitpip': 'pip install git+https://github.com/wzzfather/jsdSkillHub.git@master#subdirectory=skillhub-cli',
+  'help.cmd.configLan': 'jsdhub config-set server http://你的服务器IP:8000',
+  'help.cmd.configPub': 'jsdhub config-set server https://你的域名',
+
+  'help.cmd.login': 'jsdhub login',
+  'help.cmd.search': 'jsdhub search 关键词',
+  'help.cmd.install': 'jsdhub install 名称',
+  'help.cmd.list': 'jsdhub list',
+  'help.cmd.update': 'jsdhub update 名称',
+  'help.cmd.uninstall': 'jsdhub uninstall 名称',
+  'help.cmd.info': 'jsdhub info 名称',
+  'help.cmd.configShow': 'jsdhub config-show',
+
+  'help.desc.login': '登录商店。',
+  'help.desc.search': '按关键词搜索可安装的 Skill。',
+  'help.desc.install': '安装指定 Skill 到 ~/.openclaw/skills/。',
+  'help.desc.list': '查看本机已安装的 Skill。',
+  'help.desc.update': '将已安装的 Skill 更新到商店中的最新版本。',
+  'help.desc.uninstall': '卸载指定 Skill。',
+  'help.desc.info': '查看某个 Skill 的详情。',
+  'help.desc.configShow': '查看当前 CLI 配置（含商店地址等）。',
 };
 
 Object.assign(zh, {

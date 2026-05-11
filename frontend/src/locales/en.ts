@@ -7,6 +7,7 @@ const en: Record<string, string> = {
   'user.fallbackTitle': 'User',
   'nav.explore': 'Explore',
   'nav.docs': 'Docs',
+  'nav.help': 'CLI Guide',
   'nav.submit': 'Submit',
   'nav.myApps': 'My Apps',
   'nav.dashboard': 'Dashboard',
@@ -315,6 +316,41 @@ const en: Record<string, string> = {
   'docs.arch.storage': 'Storage',
   'docs.arch.search': 'Search',
   'docs.arch.security': 'Security',
+
+  'help.title': 'CLI guide',
+  'help.card.install': 'Install jsdhub',
+  'help.card.config': 'Configure store URL',
+  'help.card.commands': 'Common commands',
+  'help.prereq': 'Prerequisites: Python 3.10 or newer and pip.',
+  'help.install.intranet':
+    'If you are on an intranet and cannot reach PyPI, install the CLI from GitHub:',
+  'help.config.note':
+    'Replace the example host in the commands below with your actual store URL (IP, port, or domain).',
+  'help.config.lanLabel': 'LAN example',
+  'help.config.pubLabel': 'Public HTTPS example',
+
+  'help.cmd.pip': 'pip install jsdhub',
+  'help.cmd.gitpip': 'pip install git+https://github.com/wzzfather/jsdSkillHub.git@master#subdirectory=skillhub-cli',
+  'help.cmd.configLan': 'jsdhub config-set server http://YOUR_SERVER_IP:8000',
+  'help.cmd.configPub': 'jsdhub config-set server https://YOUR_DOMAIN',
+
+  'help.cmd.login': 'jsdhub login',
+  'help.cmd.search': 'jsdhub search <keyword>',
+  'help.cmd.install': 'jsdhub install <name>',
+  'help.cmd.list': 'jsdhub list',
+  'help.cmd.update': 'jsdhub update <name>',
+  'help.cmd.uninstall': 'jsdhub uninstall <name>',
+  'help.cmd.info': 'jsdhub info <name>',
+  'help.cmd.configShow': 'jsdhub config-show',
+
+  'help.desc.login': 'Sign in to the Skill Store.',
+  'help.desc.search': 'Search installable Skills by keyword.',
+  'help.desc.install': 'Install a Skill into ~/.openclaw/skills/.',
+  'help.desc.list': 'List Skills installed on this machine.',
+  'help.desc.update': 'Update an installed Skill to the latest published version.',
+  'help.desc.uninstall': 'Remove an installed Skill.',
+  'help.desc.info': 'Show detailed information for a Skill.',
+  'help.desc.configShow': 'Show current CLI configuration (including store URL).',
 };
 
 Object.assign(en, {

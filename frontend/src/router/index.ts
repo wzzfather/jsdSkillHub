@@ -13,6 +13,7 @@ const ReviewView = () => import("@/views/ReviewView.vue");
 const AdminAppsView = () => import("@/views/AdminAppsView.vue");
 const DashboardView = () => import("@/views/DashboardView.vue");
 const DocsView = () => import("@/views/DocsView.vue");
+const HelpView = () => import("@/views/HelpView.vue");
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -49,6 +50,7 @@ export const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/docs", name: "docs", component: DocsView },
+    { path: "/help", name: "help", component: HelpView },
     { path: "/dashboard", name: "dashboard", component: DashboardView, meta: { requiresAuth: true } },
   ],
 });

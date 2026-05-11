@@ -94,6 +94,9 @@ onMounted(() => {
           <button type="button" class="plain-nav" :class="navClass('docs')" @click="router.push({ name: 'docs' })">
             <i class="fa-solid fa-book" style="margin-right:4px"></i>{{ t("nav.docs") }}
           </button>
+          <button type="button" class="plain-nav" :class="navClass('help')" @click="router.push({ name: 'help' })">
+            <i class="fa-solid fa-terminal" style="margin-right:4px"></i>{{ t("nav.help") }}
+          </button>
 
           <template v-if="isAuthed">
             <button type="button" class="plain-nav" :class="navClass('submit')" @click="router.push({ name: 'submit' })">{{ t("nav.submit") }}</button>
