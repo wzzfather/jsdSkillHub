@@ -173,6 +173,20 @@ class OfflineRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
 
+class DeprecateRequest(BaseModel):
+    message: str | None = None
+
+
+class SkillVersionItem(BaseModel):
+    version: str
+    package_url: str | None
+    changelog: str | None
+    created_at: datetime
+    created_by: str | None
+
+    model_config = {"from_attributes": True}
+
+
 class ActionResponse(BaseModel):
     message: str
     new_status: str

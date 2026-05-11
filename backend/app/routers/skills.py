@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import re
 import tempfile
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
@@ -19,6 +23,7 @@ from app.models.skill_version import SkillVersion
 from app.models.user import User
 from app.schemas.common import (
     ActionResponse,
+    DeprecateRequest,
     DownloadResponse,
     InstallResponse,
     OfflineRequest,
@@ -29,6 +34,7 @@ from app.schemas.common import (
     SkillCategoriesResponse,
     SkillDetailResponse,
     SkillResponse,
+    SkillVersionItem,
 )
 from app.services import scan_service
 from app.services.audit_service import log_action
@@ -38,7 +44,145 @@ from app.utils.minio_client import generate_download_url, upload_bytes
 router = APIRouter(prefix="/skills", tags=["skills"])
 logger = logging.getLogger(__name__)
 
+_NAMESPACE_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
+_SEMVER_PATTERN = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
+    r"(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$"
+)
+
 _STANDARD_MARKET_CATEGORIES = ("productivity", "security", "support", "knowledge")
+
+
+def _norm_optional_str(v: str | None) -> str | None:
+    if v is None:
+        return None
+    s = v.strip()
+    return s if s else None
+
+
+def _find_skill_json_member(zf: zipfile.ZipFile) -> str | None:
+    names = [n.rstrip("/") for n in zf.namelist() if n and not n.endswith("/")]
+    if not names:
+        return None
+    candidates = [n for n in names if n.rsplit("/", 1)[-1] == "skill.json"]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda p: (p.count("/"), len(p)))
+    return candidates[0]
+
+
+def _parse_skill_json_manifest(zip_path: Path) -> dict[str, Any] | None:
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            member = _find_skill_json_member(zf)
+            if not member:
+                return None
+            raw_bytes = zf.read(member)
+    except zipfile.BadZipFile:
+        logger.warning("无效的 zip，跳过 skill.json 解析 path=%s", zip_path)
+        return None
+    try:
+        text = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as e:
+        logger.warning("skill.json 非 UTF-8，跳过 path=%s err=%s", zip_path, e)
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.warning("skill.json JSON 解析失败 path=%s err=%s", zip_path, e)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("skill.json 根类型不是对象，已忽略 path=%s", zip_path)
+        return None
+    return data
+
+
+def _merge_manifest_into_fields(
+    form_name: str,
+    form_description: str | None,
+    form_version: str,
+    form_category: str | None,
+    form_namespace: str | None,
+    data: dict[str, Any],
+) -> tuple[
+    str,
+    str | None,
+    str,
+    str | None,
+    str | None,
+    list[str] | None,
+    str | None,
+    str | None,
+    dict[str, Any] | None,
+]:
+    name = form_name
+    description = form_description
+    version = form_version
+    category = form_category
+    namespace = form_namespace
+    tags: list[str] | None = None
+    homepage_url: str | None = None
+    repository_url: str | None = None
+    meta: dict[str, Any] = {}
+
+    if "name" in data and data["name"] is not None:
+        raw_name = str(data["name"]).strip()
+        if "/" in raw_name:
+            ns_part, rest = raw_name.split("/", 1)
+            ns_part = ns_part.strip()
+            rest = rest.strip()
+            if ns_part:
+                namespace = ns_part
+            if rest:
+                name = rest
+        elif raw_name:
+            name = raw_name
+
+    if "description" in data:
+        d = data.get("description")
+        description = (str(d).strip() if d is not None else None) or None
+
+    if "version" in data and data["version"] is not None:
+        v = str(data["version"]).strip()
+        if v:
+            version = v
+
+    if "tags" in data:
+        t = data.get("tags")
+        if isinstance(t, list):
+            tags = [str(x) for x in t]
+        elif t is not None:
+            tags = [str(t)]
+
+    if "category" in data and data["category"] is not None:
+        c = str(data["category"]).strip()
+        category = c if c else None
+
+    if "homepage" in data and data["homepage"] is not None:
+        h = str(data["homepage"]).strip()
+        homepage_url = h if h else None
+
+    if "repository" in data and data["repository"] is not None:
+        r = str(data["repository"]).strip()
+        repository_url = r if r else None
+
+    for key in ("capabilities", "environmentVariables", "permissions", "dependencies"):
+        if key in data:
+            meta[key] = data[key]
+
+    metadata_json = meta if meta else None
+    return (
+        name,
+        description,
+        version,
+        category,
+        namespace,
+        tags,
+        homepage_url,
+        repository_url,
+        metadata_json,
+    )
 
 
 def _norm_category_column():
@@ -229,6 +373,7 @@ async def upload_skill(
     description: Annotated[str | None, Form()] = None,
     version: Annotated[str, Form()] = "1.0.0",
     category: Annotated[str | None, Form()] = None,
+    namespace: Annotated[str | None, Form()] = None,
 ) -> Skill:
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(
@@ -242,39 +387,111 @@ async def upload_skill(
             detail={"detail": "空文件", "code": "EMPTY_FILE"},
         )
 
+    fd, tmp_path = tempfile.mkstemp(prefix="skill_upload_", suffix=".zip")
+    os.close(fd)
+    Path(tmp_path).write_bytes(raw)
+
+    manifest: dict[str, Any] | None = None
+    try:
+        manifest = _parse_skill_json_manifest(Path(tmp_path))
+    except Exception:
+        logger.warning("读取 skill.json 时发生未预期异常 path=%s", tmp_path, exc_info=True)
+        manifest = None
+
+    form_ns = _norm_optional_str(namespace)
+    name_f = name.strip()
+    ver_f = version.strip()
+    desc_f = description
+    cat_f = category
+
+    if manifest:
+        (
+            name_f,
+            desc_f,
+            ver_f,
+            cat_f,
+            merged_ns,
+            tags_f,
+            home_f,
+            repo_f,
+            meta_f,
+        ) = _merge_manifest_into_fields(name_f, desc_f, ver_f, cat_f, form_ns, manifest)
+        form_ns = merged_ns
+    else:
+        tags_f = None
+        home_f = None
+        repo_f = None
+        meta_f = None
+
+    final_ns = _norm_optional_str(form_ns)
+    if final_ns is not None and not _NAMESPACE_PATTERN.fullmatch(final_ns):
+        Path(tmp_path).unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"detail": "命名空间格式无效", "code": "INVALID_NAMESPACE"},
+        )
+
+    name_final = name_f.strip()
+    if not name_final or not _NAMESPACE_PATTERN.fullmatch(name_final):
+        Path(tmp_path).unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"detail": "技能名称格式无效", "code": "INVALID_SKILL_NAME"},
+        )
+    name_f = name_final
+
+    if not _SEMVER_PATTERN.fullmatch(ver_f):
+        Path(tmp_path).unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "detail": "版本号格式不正确，请使用 SemVer 格式（如 1.0.0）",
+                "code": "INVALID_VERSION",
+            },
+        )
+
     skill = Skill(
-        name=name.strip(),
-        description=description,
-        version=version.strip(),
+        name=name_f,
+        description=desc_f,
+        version=ver_f,
         author_id=current_user.id,
         status="scanning",
-        category=category,
+        category=cat_f,
         package_url=None,
+        namespace=final_ns,
+        tags=tags_f,
+        homepage_url=home_f,
+        repository_url=repo_f,
+        metadata_json=meta_f,
     )
     db.add(skill)
     await db.flush()
 
-    key = f"skills/{skill.id}/{version}.zip"
+    key = f"skills/{skill.id}/{ver_f}.zip"
     package_url = await upload_bytes(key, raw)
     skill.package_url = package_url
 
     db.add(
         SkillVersion(
             skill_id=skill.id,
-            version=version.strip(),
+            version=ver_f,
             package_url=package_url,
             changelog=None,
+            created_by=str(current_user.id),
         )
     )
     await db.commit()
     await db.refresh(skill)
 
-    fd, tmp_path = tempfile.mkstemp(prefix=f"skill_{skill.id}_", suffix=".zip")
-    os.close(fd)
-    Path(tmp_path).write_bytes(raw)
-
     background_tasks.add_task(_run_scan_job, str(skill.id), tmp_path)
-    await log_action(db, user_id=str(current_user.id), action="upload", resource_type="skill", resource_id=str(skill.id), detail={"name": name, "version": version})
+    await log_action(
+        db,
+        user_id=str(current_user.id),
+        action="upload",
+        resource_type="skill",
+        resource_id=str(skill.id),
+        detail={"name": name_f, "version": ver_f},
+    )
     return skill
 
 
@@ -464,6 +681,64 @@ async def install_skill_npm_endpoint(
     )
     await log_action(db, user_id=str(current_user.id), action="install_npm", resource_type="skill", resource_id=str(skill_id), detail={"npm_installed": npm_installed})
     return InstallResponse(message=msg, path=path_str, npm_installed=npm_installed)
+
+
+@router.get("/{skill_id}/versions", response_model=list[SkillVersionItem])
+async def list_skill_versions(
+    skill_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[SkillVersionItem]:
+    _ = current_user
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "未找到", "code": "NOT_FOUND"},
+        )
+    stmt = (
+        select(SkillVersion)
+        .where(SkillVersion.skill_id == skill_id)
+        .order_by(SkillVersion.created_at.desc())
+    )
+    rows = list((await db.scalars(stmt)).all())
+    return [SkillVersionItem.model_validate(r) for r in rows]
+
+
+@router.post("/{skill_id}/deprecate", response_model=ActionResponse)
+async def deprecate_skill(
+    skill_id: str,
+    body: DeprecateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: Annotated[User, Depends(require_admin)],
+) -> ActionResponse:
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "未找到", "code": "NOT_FOUND"},
+        )
+    if skill.status != "published":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "仅已上架技能可弃用", "code": "INVALID_STATE"},
+        )
+    skill.status = "deprecated"
+    if body.message is not None and str(body.message).strip():
+        skill.status_message = str(body.message).strip()
+    else:
+        skill.status_message = None
+    skill.deprecated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await log_action(
+        db,
+        user_id=str(admin.id),
+        action="deprecate",
+        resource_type="skill",
+        resource_id=str(skill_id),
+        detail={"message": skill.status_message},
+    )
+    return ActionResponse(message="已弃用", new_status="deprecated")
 
 
 @router.get("/{skill_id}", response_model=SkillDetailResponse)
