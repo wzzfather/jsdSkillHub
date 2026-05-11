@@ -280,13 +280,13 @@ def login() -> None:
 
 
 @cli.command()
-def search(keyword: str = typer.Argument(..., help="搜索关键字")) -> None:
+def search(keyword: str = typer.Argument(default="", help="搜索关键字（留空则列出全部）")) -> None:
     client = _make_client()
     items = _run_async(_search_skills(client, keyword))
     if not items:
         console.print("[yellow]未找到匹配技能[/yellow]")
         return
-    _print_skill_table(items, title=f"搜索结果: {keyword}")
+    _print_skill_table(items, title=f"搜索结果: {keyword}" if keyword else "全部技能")
 
 
 @cli.command()

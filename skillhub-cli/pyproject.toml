@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jsdhub"
-version = "0.3.0"
+version = "0.3.1"
 description = "JSD SkillHub CLI - install and manage AI agent skills from the JSD Skill Store"
 requires-python = ">=3.10"
 dependencies = [
