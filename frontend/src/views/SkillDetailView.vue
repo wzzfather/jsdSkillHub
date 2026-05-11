@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { downloadSkill, fetchSkillDetail, installSkill, installSkillNpm } from "@/api/skills";
 import type { ScanLayer, SkillDetail } from "@/api/types";
 import { useLocale } from "@/locales";
@@ -15,6 +15,7 @@ const loading = ref(false);
 const installingZip = ref(false);
 const installingNpm = ref(false);
 const detail = ref<SkillDetail | null>(null);
+const cliInstallInputRef = ref<InputInstance>();
 
 /** 最近一次安装结果（持久展示路径） */
 const lastInstallZip = ref<{ message: string; path: string } | null>(null);
@@ -109,6 +110,29 @@ const layers = computed(() => {
     return { type: scanType, scan: hit as ScanLayer | undefined };
   });
 });
+
+/** 已上架 Skill 在终端通过 skillhub CLI 安装的完整命令（名称来自 API） */
+const cliInstallCommand = computed(() => {
+  if (!detail.value || detail.value.status !== "published") return "";
+  const name = detail.value.name.trim();
+  return name ? `skillhub install ${name}` : "skillhub install";
+});
+
+async function copyCliInstallCommand() {
+  const text = cliInstallCommand.value;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success(t("detail.cliInstallCopied"));
+  } catch {
+    ElMessage.error(t("detail.cliInstallCopyFail"));
+  }
+}
+
+function focusCliInstallInput() {
+  cliInstallInputRef.value?.focus?.();
+  cliInstallInputRef.value?.select?.();
+}
 
 function scanLayerTitle(scanType: string) {
   if (scanType === "semgrep") return t("detail.layerSemgrep");
@@ -261,6 +285,22 @@ onMounted(() => void load());
             <el-button size="large" class="act-outline" plain :loading="installingZip" @click="onInstallZip">{{ t("detail.installZip") }}</el-button>
             <el-button size="large" class="act-outline npm-btn" plain :loading="installingNpm" @click="onInstallNpm">{{ t("detail.installNpm") }}</el-button>
           </div>
+
+          <div class="cli-install-block">
+            <div class="cli-install-head muted">{{ t("detail.cliInstallTitle") }}</div>
+            <el-input
+              ref="cliInstallInputRef"
+              class="cli-install-input"
+              :model-value="cliInstallCommand"
+              readonly
+              @click="focusCliInstallInput"
+            >
+              <template #append>
+                <el-button type="primary" plain class="cli-copy-btn" @click="copyCliInstallCommand">{{ t("detail.cliInstallCopy") }}</el-button>
+              </template>
+            </el-input>
+          </div>
+
           <p class="npm-tip muted">{{ t("detail.installNpmTip") }}</p>
 
           <el-alert
@@ -413,6 +453,42 @@ onMounted(() => void load());
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.cli-install-block {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cli-install-head {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cli-install-input :deep(.el-input__wrapper) {
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--app-text) 7%, transparent);
+  box-shadow: none;
+  border: 1px solid var(--app-border-strong);
+}
+
+.cli-install-input :deep(.el-input__inner) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--app-text);
+}
+
+.cli-install-input :deep(.el-input-group__append) {
+  background: var(--app-surface);
+  border-left-color: var(--app-border-strong);
+}
+
+.cli-copy-btn {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  font-weight: 600;
 }
 
 .npm-tip {

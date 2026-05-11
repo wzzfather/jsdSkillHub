@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import AsyncSessionLocal
-from app.routers import auth, reviews, scans, skills, workflow
+from app.routers import auth, audit, reviews, scans, skills, workflow
 from app.services.seed import run_startup_seed
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +34,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
 app.include_router(reviews.router, prefix="/api")
 app.include_router(scans.router, prefix="/api")
+app.include_router(audit.router, prefix="/api")
 app.include_router(workflow.router, prefix="/api")
 
 

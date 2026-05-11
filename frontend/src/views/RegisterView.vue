@@ -24,6 +24,10 @@ async function onSubmit() {
     ElMessage.warning(t("register.warnUser"));
     return;
   }
+  if (form.password.length < 6) {
+    ElMessage.warning(t("register.warnPwdShort"));
+    return;
+  }
   if (form.password !== form.confirm) {
     ElMessage.warning(t("register.warnPwdMismatch"));
     return;
@@ -47,8 +51,15 @@ async function onSubmit() {
       await auth.login({ username: form.username.trim(), password: form.password });
       await router.replace("/explore");
     }
-  } catch {
-    ElMessage.error(t("register.fail"));
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 409) {
+      ElMessage.error(t("register.fail"));
+    } else if (status === 422) {
+      ElMessage.error(t("register.warnInvalid"));
+    } else {
+      ElMessage.error(t("register.failUnknown"));
+    }
   } finally {
     loading.value = false;
   }

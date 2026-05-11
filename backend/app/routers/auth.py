@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import create_access_token
 from app.models.user import User
+from app.services.audit_service import log_action
 from app.schemas.common import (
     LoginRequest,
     RegisterRequest,
@@ -93,6 +94,7 @@ async def login(
             detail={"detail": "账号不可用", "code": "USER_DISABLED"},
         )
     token = create_access_token(subject=str(user.id))
+    await log_action(db, user_id=str(user.id), action="login", resource_type="user", resource_id=str(user.id))
     return TokenResponse(access_token=token)
 
 

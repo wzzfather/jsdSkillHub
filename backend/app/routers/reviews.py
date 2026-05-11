@@ -10,6 +10,7 @@ from app.dependencies import require_admin
 from app.models.review import Review
 from app.models.skill import Skill
 from app.models.user import User
+from app.services.audit_service import log_action
 from app.schemas.common import (
     MessageResponse,
     ReviewActionRequest,
@@ -126,6 +127,7 @@ async def approve_skill(
         )
     )
     await db.commit()
+    await log_action(db, user_id=str(admin.id), action="approve", resource_type="skill", resource_id=str(skill_id), detail={"comment": body.comment})
     return MessageResponse(message="已通过上架")
 
 
@@ -147,4 +149,5 @@ async def reject_skill(
         )
     )
     await db.commit()
+    await log_action(db, user_id=str(admin.id), action="reject", resource_type="skill", resource_id=str(skill_id), detail={"comment": body.comment})
     return MessageResponse(message="已驳回")

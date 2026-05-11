@@ -31,6 +31,7 @@ from app.schemas.common import (
     SkillResponse,
 )
 from app.services import scan_service
+from app.services.audit_service import log_action
 from app.services.skill_package_service import install_skill_to_openclaw, install_skill_with_npm_to_openclaw, package_object_key
 from app.utils.minio_client import generate_download_url, upload_bytes
 
@@ -273,6 +274,7 @@ async def upload_skill(
     Path(tmp_path).write_bytes(raw)
 
     background_tasks.add_task(_run_scan_job, str(skill.id), tmp_path)
+    await log_action(db, user_id=str(current_user.id), action="upload", resource_type="skill", resource_id=str(skill.id), detail={"name": name, "version": version})
     return skill
 
 
@@ -324,6 +326,7 @@ async def offline_skill(
     skill.status = "offline"
     skill.offline_comment = comment
     await db.commit()
+    await log_action(db, action="offline", resource_type="skill", resource_id=str(skill.id), detail={"comment": comment})
     return ActionResponse(message="已下架", new_status="offline")
 
 
@@ -351,6 +354,7 @@ async def resubmit_skill(
         )
     skill.status = "pending_review"
     await db.commit()
+    await log_action(db, user_id=str(current_user.id), action="resubmit", resource_type="skill", resource_id=str(skill_id))
     return ActionResponse(message="已重新提交，进入审批队列", new_status="pending_review")
 
 
@@ -374,6 +378,7 @@ async def republish_skill(
     skill.status = "pending_review"
     skill.offline_comment = None
     await db.commit()
+    await log_action(db, action="republish", resource_type="skill", resource_id=str(skill_id))
     return ActionResponse(message="已提交重新上架审批", new_status="pending_review")
 
 
@@ -403,6 +408,7 @@ async def download_skill_package(
     skill = _require_published_package(await db.get(Skill, skill_id))
     key = package_object_key(skill)
     url = await asyncio.to_thread(generate_download_url, key, 3600)
+    await log_action(db, user_id=str(current_user.id), action="download", resource_type="skill", resource_id=str(skill_id))
     return DownloadResponse(download_url=url)
 
 
@@ -456,6 +462,7 @@ async def install_skill_npm_endpoint(
         if npm_installed
         else "安装成功（包内未检测到 package.json，未执行 npm）"
     )
+    await log_action(db, user_id=str(current_user.id), action="install_npm", resource_type="skill", resource_id=str(skill_id), detail={"npm_installed": npm_installed})
     return InstallResponse(message=msg, path=path_str, npm_installed=npm_installed)
 
 
