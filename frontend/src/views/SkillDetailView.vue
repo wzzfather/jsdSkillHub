@@ -109,7 +109,7 @@ const layers = computed(() => {
 const cliInstallCommand = computed(() => {
   if (!detail.value || detail.value.status !== "published") return "";
   const name = detail.value.name.trim();
-  return name ? `skillhub install ${name}` : "skillhub install";
+  return name ? `jsdhub install ${name}` : "jsdhub install";
 });
 
 async function copyCliInstallCommand() {

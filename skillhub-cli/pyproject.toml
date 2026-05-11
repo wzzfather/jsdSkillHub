@@ -3,18 +3,20 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jsd-skillhub"
-version = "0.2.0"
-description = "SkillHub command line client"
+name = "jsdhub"
+version = "0.3.0"
+description = "JSD SkillHub CLI - install and manage AI agent skills from the JSD Skill Store"
 requires-python = ">=3.10"
 dependencies = [
   "typer[rich]",
   "httpx",
-  "toml; python_version < '3.11'",
 ]
 
+[project.urls]
+Homepage = "https://github.com/wzzfather/jsdSkillHub"
+
 [project.scripts]
-skillhub = "skillhub.cli:app"
+jsdhub = "skillhub.cli:app"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

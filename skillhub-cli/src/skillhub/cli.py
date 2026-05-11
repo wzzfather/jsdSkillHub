@@ -375,7 +375,7 @@ def info(name: str = typer.Argument(..., help="技能名称")) -> None:
         console.print(scan_table)
 
 
-@cli.command("config_set")
+@cli.command("config-set")
 def config_set(
     key: str = typer.Argument(..., help="配置键"),
     value: str | None = typer.Argument(None, help="配置值；也支持传入 key=value"),
@@ -404,7 +404,7 @@ def config_set(
     console.print(f"[green]配置已更新[/green] {key}={display_value}")
 
 
-@cli.command("config_show")
+@cli.command("config-show")
 def config_show() -> None:
     try:
         rich_print(load_config())
