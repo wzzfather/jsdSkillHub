@@ -6,11 +6,13 @@ from botocore.client import BaseClient
 from app.config import get_settings
 
 
-def _client() -> BaseClient:
+def _client(*, endpoint_url: str | None = None) -> BaseClient:
+    """创建 S3 客户端。endpoint_url 省略时使用 MINIO_ENDPOINT_URL（服务间/容器内访问）。"""
     s = get_settings()
+    base = (endpoint_url if endpoint_url is not None else s.minio_endpoint_url).rstrip("/")
     return boto3.client(
         "s3",
-        endpoint_url=s.minio_endpoint_url,
+        endpoint_url=base,
         aws_access_key_id=s.minio_access_key,
         aws_secret_access_key=s.minio_secret_key,
         region_name="us-east-1",
@@ -43,9 +45,13 @@ async def upload_bytes(key: str, data: bytes, content_type: str = "application/z
 
 
 def generate_download_url(key: str, expires: int = 3600) -> str:
-    """使用 boto3 / S3 API 生成临时 GET 预签名 URL（默认 3600 秒）。"""
+    """使用 boto3 / S3 API 生成临时 GET 预签名 URL（默认 3600 秒）。
+
+    必须使用 MINIO_EXTERNAL_URL 对应的 endpoint 创建客户端并签名，否则 Host 与 SigV4
+    不一致时 MinIO 会校验失败；浏览器也应使用该外部地址访问对象。
+    """
     s = get_settings()
-    client = _client()
+    client = _client(endpoint_url=s.minio_external_url)
     return client.generate_presigned_url(
         "get_object",
         Params={"Bucket": s.minio_bucket, "Key": key},

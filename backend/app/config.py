@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
 
     minio_endpoint_url: str = "http://localhost:9000"
+    # 返回给浏览器/公网的预签名 URL 使用的 endpoint（容器内可用 http://minio:9000 时仍应设为宿主机可访问地址）
+    minio_external_url: str = "http://localhost:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_bucket: str = "app-store"
