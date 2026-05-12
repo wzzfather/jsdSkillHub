@@ -16,6 +16,31 @@
 % === 数学符号 ===
 \usepackage{amssymb}
 
+% === 流程图（TikZ）===
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
+\usepackage{float}
+
+\tikzset{
+  arr/.style={thick, -Stealth},
+  flowstep/.style={rectangle, rounded corners, draw=black, fill=white, thick,
+    minimum width=2.6cm, minimum height=0.82cm, align=center, font=\small},
+  decision/.style={diamond, draw=black, fill=white, thick, aspect=2.2,
+    inner sep=1pt, minimum width=1.6cm, minimum height=1.6cm, align=center, font=\small},
+  rolehuman/.style={ellipse, draw=blue!60, fill=blue!15, thick,
+    minimum width=2.0cm, minimum height=0.72cm, align=center, font=\small},
+  rolepm/.style={ellipse, draw=purple!60, fill=purple!15, thick,
+    minimum width=2.0cm, minimum height=0.72cm, align=center, font=\small},
+  roledev/.style={ellipse, draw=green!60, fill=green!15, thick,
+    minimum width=2.0cm, minimum height=0.72cm, align=center, font=\small},
+  rolesys/.style={ellipse, draw=gray!60, fill=gray!15, thick,
+    minimum width=2.0cm, minimum height=0.72cm, align=center, font=\small},
+  scanbox/.style={rectangle, rounded corners, draw=gray!70, fill=gray!10, thick,
+    minimum width=1.9cm, minimum height=0.65cm, align=center, font=\scriptsize},
+  statebox/.style={rectangle, rounded corners, thick, minimum width=1.85cm,
+    minimum height=0.7cm, align=center, font=\scriptsize},
+}
+
 % === 颜色 ===
 \usepackage{xcolor}
 \definecolor{primary}{HTML}{1a1a2e}
@@ -172,6 +197,32 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 
 \textbf{流程}：需求新增 $\to$ PM 评估 $\to$ 拆解分配 $\to$ Cursor 执行 $\to$ PM 验收。3 级变更控制（P0/P1/P2），4 级优先级。
 
+需求变更流程如下图所示：
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.95cm and 0.55cm,
+  ]
+  \node[flowstep] (n1) {需求新增};
+  \node[flowstep, right=1.6cm of n1] (n2) {PM 评估};
+  \node[flowstep, right=1.6cm of n2] (n3) {拆解分配};
+  \node[flowstep, right=1.6cm of n3] (n4) {Cursor 执行};
+  \node[decision, right=1.4cm of n4] (n5) {PM\\验收};
+  \node[flowstep, right=1.6cm of n5] (ok) {通过结案};
+
+  \draw[arr] (n1) -- (n2);
+  \draw[arr] (n2) to[bend left=18] node[above, sloped, font=\scriptsize] {P0 紧急} (n3);
+  \draw[arr] (n2) -- node[above, font=\scriptsize] {P1 常规} (n3);
+  \draw[arr] (n2) to[bend right=18] node[below, sloped, font=\scriptsize] {P2 优化} (n3);
+  \draw[arr] (n3) -- (n4);
+  \draw[arr] (n4) -- (n5);
+  \draw[arr] (n5) -- node[above] {通过} (ok);
+  \draw[arr] (n5.south) -- +(0,-0.42) -| node[pos=0.32, left, font=\scriptsize] {不通过} (n4.south);
+\end{tikzpicture}
+\caption{需求变更流程}
+\label{fig:d005-change-flow}
+\end{figure}
+
 \subsection{D-006：自闭环机制}
 
 5 个闭环：需求闭环、开发闭环、测试闭环、文档闭环、审计闭环。每个闭环有明确的触发条件、执行步骤、完成标准。
@@ -222,6 +273,34 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 \end{itemize}
 
 \textbf{对应文档}：DEMAND-003-task-workflow（v0.2）。
+
+任务流转路径如下图所示：
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.75cm and 0.9cm,
+    scale=0.82,
+    transform shape,
+  ]
+  \node[rolehuman] (a1) {魏子政\\[-2pt]\scriptsize （甲方）};
+  \node[rolepm, right=of a1] (a2) {OpenClaw\\[-2pt]\scriptsize （PM AI）};
+  \node[decision, right=of a2] (a3) {拍板\\确认};
+  \node[roledev, right=of a3] (a4) {Cursor\\[-2pt]\scriptsize （开发 AI）};
+  \node[rolesys, right=of a4] (a5) {代码审查};
+  \node[rolepm, right=of a5] (a6) {PM 验收};
+  \node[rolesys, right=of a6] (a7) {交付};
+
+  \draw[arr] (a1) -- (a2);
+  \draw[arr] (a2) -- (a3);
+  \draw[arr] (a3) -- node[above, font=\scriptsize] {无歧义} (a4);
+  \draw[arr] (a3.south) -- +(0,-0.95) -| node[pos=0.18, below, font=\scriptsize] {有歧义} (a1.south);
+  \draw[arr] (a4) -- (a5);
+  \draw[arr] (a5) -- (a6);
+  \draw[arr] (a6) -- (a7);
+\end{tikzpicture}
+\caption{任务流转路径（7 步）}
+\label{fig:d009-task-flow}
+\end{figure}
 
 % ---------- D-010 ----------
 \subsection{D-010：多智能体协作方案}
@@ -288,6 +367,42 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 
 \textbf{对应文档}：DEMAND-007-flow-fix-and-install。
 
+Skill 完整生命周期（上传、三层扫描、审批与上架）如下图所示：
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm and 0.65cm,
+  ]
+  \node[flowstep] (u) {用户上传 ZIP};
+  \node[scanbox, below left=0.85cm and 0.18cm of u] (s1) {Semgrep};
+  \node[scanbox, below=0.85cm of u] (s2) {ClamAV};
+  \node[scanbox, below right=0.85cm and 0.18cm of u] (s3) {LLM 语义};
+  \node[inner sep=3pt, draw=gray!50, dashed, rounded corners,
+    fit=(s1)(s2)(s3), label={[font=\scriptsize,yshift=2pt]above:三层扫描}] (scanfit) {};
+  \node[flowstep, below=0.72cm of scanfit] (agg) {扫描结果汇总};
+  \node[flowstep, below=of agg] (adm) {管理员审批};
+  \node[decision, below=of adm] (dec) {结果};
+  \node[flowstep, below left=1.0cm and 0.45cm of dec] (rej) {驳回};
+  \node[flowstep, below right=1.0cm and 0.45cm of dec] (pub) {上架发布};
+  \node[flowstep, below=of pub] (use) {浏览 / 安装 / 下载};
+
+  \draw[arr] (u) -- (s1);
+  \draw[arr] (u) -- (s2);
+  \draw[arr] (u) -- (s3);
+  \draw[arr] (s1) |- (agg);
+  \draw[arr] (s2) -- (agg);
+  \draw[arr] (s3) |- (agg);
+  \draw[arr] (agg) -- (adm);
+  \draw[arr] (adm) -- (dec);
+  \draw[arr] (dec.west) -- ++(-0.32,0) |- node[pos=0.46, left, font=\scriptsize] {驳回} (rej.north);
+  \draw[arr] (dec.east) -- ++(0.32,0) |- node[pos=0.46, right, font=\scriptsize] {通过} (pub.north);
+  \draw[arr] (rej.west) -- ++(-0.55,0) |- node[pos=0.62, left, font=\scriptsize] {重新提交} (u.west);
+  \draw[arr] (pub) -- (use);
+\end{tikzpicture}
+\caption{Skill 完整生命周期流程}
+\label{fig:skill-lifecycle}
+\end{figure}
+
 % ---------- D-014 ----------
 \subsection{D-014：目录框架重构}
 
@@ -325,6 +440,31 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 \textbf{需求描述}：支持下架、重新上架、重新提交等完整状态流转，与审批及版本策略衔接。
 
 \textbf{对应文档}：无独立 DEMAND 文件（约定与实现见 DEMAND-009-email-auth-and-lifecycle 及相关代码变更）。
+
+上架与下架状态流转如下图所示：
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.05cm and 1.15cm,
+  ]
+  \node[statebox, fill=yellow!12, draw=warning!80!black] (st0) {草稿};
+  \node[statebox, fill=blue!8, draw=blue!55, right=of st0] (st1) {已上传};
+  \node[statebox, fill=progress!15, draw=progress!70, right=of st1] (st2) {扫描中};
+  \node[statebox, fill=orange!12, draw=orange!70!black, right=of st2] (st3) {待审核};
+  \node[statebox, fill=success!15, draw=success!70!black, below=1.5cm of st3] (st4) {已上架};
+  \node[statebox, fill=gray!18, draw=gray!65, left=of st4] (st5) {已下架};
+
+  \draw[arr] (st0) -- node[above, font=\scriptsize] {上传} (st1);
+  \draw[arr] (st1) -- node[above, font=\scriptsize] {开始扫描} (st2);
+  \draw[arr] (st2) -- node[above, font=\scriptsize] {扫描完成} (st3);
+  \draw[arr] (st3) -- node[right, font=\scriptsize] {审批通过} (st4);
+  \draw[arr] (st3.south) -- +(0,-0.58) -| node[pos=0.48, below, font=\scriptsize] {驳回} (st1.south);
+  \draw[arr] (st4) -- node[above, font=\scriptsize] {手动下架} (st5);
+  \draw[arr] (st5) -- node[below, font=\scriptsize] {重新上架} (st4);
+\end{tikzpicture}
+\caption{上架与下架状态机}
+\label{fig:d017-state-machine}
+\end{figure}
 
 % ---------- D-018 ----------
 \subsection{D-018：竞品分析}
