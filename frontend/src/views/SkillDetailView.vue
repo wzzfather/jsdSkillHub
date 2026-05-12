@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
   CircleCheck,
   CircleClose,
-  DArrowLeft,
-  DArrowRight,
   Loading,
   WarningFilled,
 } from "@element-plus/icons-vue";
@@ -24,26 +22,6 @@ const versions = ref<SkillVersion[]>([]);
 const versionsLoading = ref(false);
 const versionsLoadFailed = ref(false);
 const cliInstallInputRef = ref<InputInstance>();
-const asideExpanded = ref(false);
-const isNarrow = ref(false);
-
-let viewportMql: MediaQueryList | null = null;
-
-function syncNarrowLayout() {
-  if (typeof window === "undefined") return;
-  const narrow = window.matchMedia("(max-width: 767px)").matches;
-  const wasNarrow = isNarrow.value;
-  isNarrow.value = narrow;
-  if (narrow) {
-    asideExpanded.value = true;
-  } else if (wasNarrow && !narrow) {
-    asideExpanded.value = false;
-  }
-}
-
-function onViewportChange() {
-  syncNarrowLayout();
-}
 
 function skillDisplayTitle(skill: Pick<SkillDetail, "name" | "namespace">) {
   const ns = skill.namespace?.trim();
@@ -71,72 +49,7 @@ function statusLabel(status: string) {
   return k ? t(k) : status;
 }
 
-/** 详情页任务流转：每步附带状态文案（已完成 / 进行中 / 待处理） */
-const detailFlow = computed(() => {
-  const st = detail.value?.status ?? "";
-  const UP = t("flow.stepUpload");
-  const SC = t("flow.stepScan");
-  const RV = t("flow.stepReview");
-  const PB = t("flow.stepPublished");
-  const titles = [UP, SC, RV, PB] as const;
-  let rows: { title: string; stateLabel: string }[] = [
-    { title: UP, stateLabel: t("flow.statePending") },
-    { title: SC, stateLabel: t("flow.statePending") },
-    { title: RV, stateLabel: t("flow.statePending") },
-    { title: PB, stateLabel: t("flow.statePending") },
-  ];
-  let active = 0;
-  let processStatus: "process" | "error" | "success" | "wait" | "finish" = "process";
-  let footnote = "" as string;
-
-  if (st === "scanning") {
-    rows = [
-      { title: UP, stateLabel: t("flow.stateDone") },
-      { title: SC, stateLabel: t("flow.stateRunning") },
-      { title: RV, stateLabel: t("flow.statePending") },
-      { title: PB, stateLabel: t("flow.statePending") },
-    ];
-    active = 1;
-  } else if (st === "pending_review") {
-    rows = [
-      { title: UP, stateLabel: t("flow.stateDone") },
-      { title: SC, stateLabel: t("flow.stateDone") },
-      { title: RV, stateLabel: t("flow.stateRunning") },
-      { title: PB, stateLabel: t("flow.statePending") },
-    ];
-    active = 2;
-  } else if (st === "rejected") {
-    rows = [
-      { title: UP, stateLabel: t("flow.stateDone") },
-      { title: SC, stateLabel: t("flow.stateDone") },
-      { title: RV, stateLabel: t("flow.stateRejectedLine") },
-      { title: PB, stateLabel: t("flow.statePending") },
-    ];
-    active = 2;
-    processStatus = "error";
-    footnote = t("flow.noteRejected");
-  } else if (st === "published") {
-    rows = titles.map((x) => ({ title: x, stateLabel: t("flow.stateDone") }));
-    active = 4;
-    processStatus = "success";
-  } else if (st === "deprecated") {
-    rows = titles.map((x) => ({ title: x, stateLabel: t("flow.stateDone") }));
-    active = 4;
-    processStatus = "success";
-    footnote = t("flow.noteDeprecated");
-  } else if (st === "offline") {
-    rows = titles.map((x) => ({ title: x, stateLabel: t("flow.stateDone") }));
-    active = 4;
-    processStatus = "success";
-    footnote = t("flow.noteOffline");
-  } else {
-    rows = [{ title: UP, stateLabel: t("flow.stateRunning") }, ...titles.slice(1).map((x) => ({ title: x, stateLabel: t("flow.statePending") }))];
-    active = 0;
-  }
-
-  return { rows, active, processStatus, footnote };
-});
-
+/** 扫描层列表 */
 const layers = computed(() => {
   const want = ["semgrep", "clamav", "llm"];
   const list = detail.value?.scans ?? [];
@@ -146,7 +59,7 @@ const layers = computed(() => {
   });
 });
 
-/** 已上架 Skill 在终端通过 skillhub CLI 安装的完整命令（名称来自 API） */
+/** CLI 安装命令 */
 const cliInstallCommand = computed(() => {
   if (!detail.value || detail.value.status !== "published") return "";
   const name = detail.value.name.trim();
@@ -238,16 +151,7 @@ async function load() {
   }
 }
 
-onMounted(() => {
-  syncNarrowLayout();
-  viewportMql = window.matchMedia("(max-width: 767px)");
-  viewportMql.addEventListener("change", onViewportChange);
-  void load();
-});
-
-onUnmounted(() => {
-  viewportMql?.removeEventListener("change", onViewportChange);
-});
+onMounted(() => void load());
 </script>
 
 <template>
@@ -259,8 +163,7 @@ onUnmounted(() => {
       <el-button class="mt" type="primary" @click="router.push({ name: 'explore' })">{{ t("detail.backMarket") }}</el-button>
     </div>
 
-    <div v-else class="detail-layout">
-      <div class="detail-main">
+    <div v-else>
         <el-breadcrumb separator="/" class="crumb">
           <el-breadcrumb-item :to="{ name: 'explore' }">{{ t("detail.breadcrumbMarket") }}</el-breadcrumb-item>
           <el-breadcrumb-item>{{ skillDisplayTitle(detail) }}</el-breadcrumb-item>
@@ -391,42 +294,6 @@ onUnmounted(() => {
           </el-table-column>
           </el-table>
         </section>
-
-        <button
-          type="button"
-          class="aside-toggle"
-          @click="asideExpanded = true"
-          v-if="!isNarrow && !asideExpanded"
-        >
-          <el-icon><DArrowLeft /></el-icon>
-          {{ t("detail.asideExpand") }}
-        </button>
-      </div>
-
-      <aside class="detail-aside" :class="{ collapsed: !asideExpanded }">
-        <div class="detail-aside-inner">
-          <header class="aside-head">
-            <span class="aside-head-title">{{ t("detail.flowTitle") }}</span>
-            <button
-              type="button"
-              class="aside-collapse-btn"
-              v-if="!isNarrow"
-              @click="asideExpanded = false"
-            >
-              <el-icon><DArrowRight /></el-icon>
-              {{ t("detail.asideCollapse") }}
-            </button>
-          </header>
-          <section class="flow-section">
-            <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
-              <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
-            </el-steps>
-            <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
-              {{ detailFlow.footnote }}
-            </el-alert>
-          </section>
-        </div>
-      </aside>
     </div>
   </div>
 </template>
@@ -438,111 +305,10 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.detail-layout {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-}
-
 .detail-main {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.detail-aside {
-  width: 380px;
-  flex-shrink: 0;
-  transition:
-    width 0.3s ease,
-    opacity 0.3s ease;
-  overflow: hidden;
-}
-
-.detail-aside.collapsed {
-  width: 0;
-  opacity: 0;
-}
-
-.detail-aside-inner {
-  width: 380px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.aside-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.aside-head-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--app-text);
-  line-height: 1.3;
-  min-width: 0;
-}
-
-.aside-collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--app-muted);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border-strong);
-  border-radius: var(--radius-control);
-  cursor: pointer;
-}
-
-.aside-collapse-btn:hover {
-  color: var(--app-text);
-  border-color: var(--app-border-strong);
-}
-
-.aside-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--app-text);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border-strong);
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  box-shadow: var(--shadow-card);
-}
-
-.aside-toggle:hover {
-  border-color: color-mix(in srgb, var(--app-text) 28%, var(--app-border-strong));
-}
-
-@media (max-width: 767px) {
-  .detail-layout {
-    flex-direction: column;
-  }
-
-  .detail-aside {
-    width: 100% !important;
-    opacity: 1 !important;
-  }
-
-  .detail-aside-inner {
-    width: 100%;
-  }
 }
 
 .crumb {
@@ -754,41 +520,4 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-.flow-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.flow-steps {
-  padding: 8px 0;
-  background: var(--app-surface);
-  border-radius: var(--radius-card);
-  border: 1px solid var(--app-border);
-  padding-left: 12px;
-  padding-right: 12px;
-}
-
-.flow-steps :deep(.el-step__title) {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.flow-steps :deep(.el-step__description) {
-  font-size: 12px;
-  max-width: 160px;
-  line-height: 1.4;
-}
-
-.flow-note {
-  border-radius: var(--radius-control);
-  background: var(--app-bg) !important;
-  border: 1px solid var(--app-border-strong) !important;
-  color: var(--app-muted) !important;
-}
-
-.flow-note :deep(.el-alert__title) {
-  color: var(--app-muted);
-  font-weight: 500;
-}
 </style>
