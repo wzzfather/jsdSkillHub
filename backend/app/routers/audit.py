@@ -31,7 +31,7 @@ async def list_audit_logs(
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
+            detail="需要管理员权限",
         )
 
     query = select(AuditLog).order_by(AuditLog.created_at.desc())

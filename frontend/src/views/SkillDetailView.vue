@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
+  CaretRight,
   CircleCheck,
   CircleClose,
   Loading,
@@ -22,6 +23,8 @@ const versions = ref<SkillVersion[]>([]);
 const versionsLoading = ref(false);
 const versionsLoadFailed = ref(false);
 const cliInstallInputRef = ref<InputInstance>();
+const sidebarOpen = ref(false);
+const sidebarActivePanels = ref(["scan", "flow", "meta"]);
 
 function skillDisplayTitle(skill: Pick<SkillDetail, "name" | "namespace">) {
   const ns = skill.namespace?.trim();
@@ -59,6 +62,46 @@ const layers = computed(() => {
   });
 });
 
+/** 与「我的应用」列表一致的步骤索引，用于侧栏 el-steps */
+const detailFlow = computed(() => {
+  const status = detail.value?.status ?? "";
+  let activeStep = 0;
+  let processStatus: "process" | "error" | "finish" | "success" | "wait" = "process";
+  if (!status) {
+    return { activeStep: 0, processStatus: "wait" as const };
+  }
+  if (status === "draft") {
+    activeStep = 0;
+    processStatus = "wait";
+  } else if (status === "scanning") {
+    activeStep = 1;
+    processStatus = "process";
+  } else if (status === "pending_review") {
+    activeStep = 2;
+    processStatus = "process";
+  } else if (status === "rejected") {
+    activeStep = 2;
+    processStatus = "error";
+  } else if (status === "published" || status === "deprecated") {
+    activeStep = 4;
+    processStatus = "success";
+  } else if (status === "offline") {
+    activeStep = 4;
+    processStatus = "finish";
+  } else {
+    activeStep = 0;
+    processStatus = "wait";
+  }
+  return { activeStep, processStatus };
+});
+
+function layerRowLabel(scanType: string) {
+  if (scanType === "semgrep") return t("detail.scanStatic");
+  if (scanType === "clamav") return t("detail.scanSecurity");
+  if (scanType === "llm") return t("detail.scanSmart");
+  return scanType;
+}
+
 /** CLI 安装命令 */
 const cliInstallCommand = computed(() => {
   if (!detail.value || detail.value.status !== "published") return "";
@@ -86,15 +129,6 @@ function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
   if (!scan && skillStatus === "scanning") return "loading";
   if (!scan) return "warn";
   return scan.passed ? "ok" : "bad";
-}
-
-function scanTagLabel(scan: ScanLayer | undefined, skillStatus: string) {
-  const kind = scan?.scan_type;
-  if (kind === "semgrep") return t("detail.scanStatic");
-  if (kind === "clamav") return t("detail.scanSecurity");
-  if (kind === "llm") return t("detail.scanSmart");
-  if (!scan && skillStatus === "scanning") return t("detail.scanStatic");
-  return t("detail.scanStatic");
 }
 
 function scanTagType(scan: ScanLayer | undefined, skillStatus: string) {
@@ -169,131 +203,182 @@ onMounted(() => void load());
           <el-breadcrumb-item>{{ skillDisplayTitle(detail) }}</el-breadcrumb-item>
         </el-breadcrumb>
 
-        <section class="main-card card-panel">
-          <div class="hero-row">
-          <div class="skill-icon-wrap" aria-hidden="true">
-            <img v-if="detail.icon_url" class="skill-icon-img" :src="detail.icon_url" alt="" />
-            <div v-else class="skill-icon-ph">
-              <svg class="skill-icon-svg" viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M12 2l7 4v8l-7 4-7-4V6l7-4zm0 2.2L6.5 7.1v6.3L12 17l5.5-3.6V7.1L12 4.2z"
-                  opacity="0.95"
-                />
-              </svg>
-            </div>
-          </div>
-          <div class="title-block">
-            <h1 class="title">{{ skillDisplayTitle(detail) }}</h1>
-            <div class="title-tags">
-              <el-tag v-for="row in layers" :key="row.type" size="small" :type="scanTagType(row.scan, detail.status)" effect="dark" class="scan-result-tag">
-                <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="scan-tag-icon spin"><Loading /></el-icon>
-                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="scan-tag-icon"><CircleCheck /></el-icon>
-                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="scan-tag-icon"><CircleClose /></el-icon>
-                <el-icon v-else class="scan-tag-icon"><WarningFilled /></el-icon>
-                {{ scanTagLabel(row.scan, detail.status) }}
-              </el-tag>
-              <el-tag v-if="detail.status === 'deprecated'" effect="dark" type="warning">{{ t("detail.deprecatedBadge") }}</el-tag>
-              <el-tag effect="light" type="info">{{ statusLabel(detail.status) }}</el-tag>
-              <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
-              <el-tag v-if="detail.category" effect="plain" type="info">{{ detail.category }}</el-tag>
-              <el-tag v-for="tag in detail.tags || []" :key="tag" effect="plain" type="success" size="small">{{ tag }}</el-tag>
-            </div>
-          </div>
-          </div>
+        <div class="detail-layout">
+          <div class="detail-main-column">
+            <section class="main-card card-panel">
+              <div class="hero-row">
+                <div class="skill-icon-wrap" aria-hidden="true">
+                  <img v-if="detail.icon_url" class="skill-icon-img" :src="detail.icon_url" alt="" />
+                  <div v-else class="skill-icon-ph">
+                    <svg class="skill-icon-svg" viewBox="0 0 24 24">
+                      <path
+                        fill="currentColor"
+                        d="M12 2l7 4v8l-7 4-7-4V6l7-4zm0 2.2L6.5 7.1v6.3L12 17l5.5-3.6V7.1L12 4.2z"
+                        opacity="0.95"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div class="title-block">
+                  <h1 class="title">{{ skillDisplayTitle(detail) }}</h1>
+                  <div class="title-tags">
+                    <el-tag v-if="detail.status === 'deprecated'" effect="dark" type="warning">{{ t("detail.deprecatedBadge") }}</el-tag>
+                    <el-tag effect="light" type="info">{{ statusLabel(detail.status) }}</el-tag>
+                    <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
+                    <el-tag v-if="detail.category" effect="plain" type="info">{{ detail.category }}</el-tag>
+                    <el-tag v-for="tag in detail.tags || []" :key="tag" effect="plain" type="success" size="small">{{ tag }}</el-tag>
+                  </div>
+                </div>
+              </div>
 
-          <el-alert
-          v-if="detail.status === 'deprecated'"
-          class="deprecated-alert"
-          type="warning"
-          :closable="false"
-          show-icon
-          :title="t('detail.deprecatedNotice')"
-          >
-            <template v-if="detail.status_message">{{ detail.status_message }}</template>
-          </el-alert>
+              <el-alert
+                v-if="detail.status === 'deprecated'"
+                class="deprecated-alert"
+                type="warning"
+                :closable="false"
+                show-icon
+                :title="t('detail.deprecatedNotice')"
+              >
+                <template v-if="detail.status_message">{{ detail.status_message }}</template>
+              </el-alert>
 
-          <div v-if="detail.homepage_url || detail.repository_url" class="link-row">
-          <el-link v-if="detail.homepage_url" :href="detail.homepage_url" target="_blank" rel="noopener noreferrer" type="primary">
-            {{ t("detail.linkHomepage") }}
-          </el-link>
-          <el-link
-            v-if="detail.repository_url"
-            :href="detail.repository_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            type="primary"
-          >
-            {{ t("detail.linkRepository") }}
-          </el-link>
-          </div>
+              <p class="body body-desc">{{ detail.description || t("detail.noDesc") }}</p>
 
-          <p class="body">{{ detail.description || t("detail.noDesc") }}</p>
+              <template v-if="detail.status === 'published'">
+                <div class="actions">
+                  <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ t("detail.dlZip") }}</el-button>
+                </div>
 
-          <div class="meta-line muted">
-          <span>{{ t("detail.author") }}{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : t("common.emDash") }}</span>
-          <span class="dot">·</span>
-          <span>{{ t("detail.submittedAt") }}{{ formatTime(detail.created_at) }}</span>
-          </div>
-
-          <template v-if="detail.status === 'published'">
-          <div class="actions">
-            <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ t("detail.dlZip") }}</el-button>
-          </div>
-
-          <div class="cli-install-block">
-            <div class="cli-install-head muted">{{ t("detail.cliInstallTitle") }}</div>
-            <el-input
-              ref="cliInstallInputRef"
-              class="cli-install-input"
-              :model-value="cliInstallCommand"
-              readonly
-              @click="focusCliInstallInput"
-            >
-              <template #append>
-                <el-button type="primary" plain class="cli-copy-btn" @click="copyCliInstallCommand">{{ t("detail.cliInstallCopy") }}</el-button>
+                <div class="cli-install-block">
+                  <div class="cli-install-head muted">{{ t("detail.cliInstallTitle") }}</div>
+                  <el-input
+                    ref="cliInstallInputRef"
+                    class="cli-install-input"
+                    :model-value="cliInstallCommand"
+                    readonly
+                    @click="focusCliInstallInput"
+                  >
+                    <template #append>
+                      <el-button type="primary" plain class="cli-copy-btn" @click="copyCliInstallCommand">{{ t("detail.cliInstallCopy") }}</el-button>
+                    </template>
+                  </el-input>
+                </div>
               </template>
-            </el-input>
-          </div>
-          </template>
-        </section>
+            </section>
 
-        <section class="versions-section">
-          <h2 class="section-title">{{ t("detail.versionsTitle") }}</h2>
-          <div v-if="versionsLoading" class="muted">{{ t("common.loading") }}</div>
-          <el-alert v-else-if="versionsLoadFailed" type="info" :closable="false" show-icon class="versions-hint">
-            {{ t("detail.versionsNeedLogin") }}
-          </el-alert>
-          <el-table v-else :data="versions" stripe class="versions-table" empty-text="—">
-          <el-table-column prop="version" :label="t('detail.versionsColVersion')" width="110" />
-          <el-table-column :label="t('detail.versionsColPackage')" min-width="140">
-            <template #default="{ row }">
-              <el-link v-if="row.package_url" :href="row.package_url" target="_blank" rel="noopener noreferrer" type="primary">
-                {{ t("detail.versionsDownload") }}
-              </el-link>
-              <span v-else class="muted">{{ t("common.emDash") }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('detail.versionsColChangelog')" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              {{ row.changelog || t("common.emDash") }}
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('detail.versionsColCreated')" min-width="168">
-            <template #default="{ row }">
-              {{ formatTime(row.created_at) }}
-            </template>
-          </el-table-column>
-          <el-table-column :label="t('detail.versionsColAuthor')" min-width="120" show-overflow-tooltip>
-            <template #default="{ row }">
-              <template v-if="row.created_by">
-                {{ row.created_by.length <= 12 ? row.created_by : `…${row.created_by.slice(-10)}` }}
-              </template>
-              <span v-else class="muted">{{ t("common.emDash") }}</span>
-            </template>
-          </el-table-column>
-          </el-table>
-        </section>
+            <section class="versions-section">
+              <h2 class="section-title">{{ t("detail.versionsTitle") }}</h2>
+              <div v-if="versionsLoading" class="muted">{{ t("common.loading") }}</div>
+              <el-alert v-else-if="versionsLoadFailed" type="info" :closable="false" show-icon class="versions-hint">
+                {{ t("detail.versionsNeedLogin") }}
+              </el-alert>
+              <el-table v-else :data="versions" stripe class="versions-table" empty-text="—">
+                <el-table-column prop="version" :label="t('detail.versionsColVersion')" width="110" />
+                <el-table-column :label="t('detail.versionsColPackage')" min-width="140">
+                  <template #default="{ row }">
+                    <el-link v-if="row.package_url" :href="row.package_url" target="_blank" rel="noopener noreferrer" type="primary">
+                      {{ t("detail.versionsDownload") }}
+                    </el-link>
+                    <span v-else class="muted">{{ t("common.emDash") }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('detail.versionsColChangelog')" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    {{ row.changelog || t("common.emDash") }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('detail.versionsColCreated')" min-width="168">
+                  <template #default="{ row }">
+                    {{ formatTime(row.created_at) }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('detail.versionsColAuthor')" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <template v-if="row.created_by">
+                      {{ row.created_by.length <= 12 ? row.created_by : `…${row.created_by.slice(-10)}` }}
+                    </template>
+                    <span v-else class="muted">{{ t("common.emDash") }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </section>
+          </div>
+
+          <aside class="detail-sidebar" :class="{ 'is-collapsed': !sidebarOpen }">
+            <div v-if="!sidebarOpen" class="sidebar-collapsed">
+              <el-button type="primary" plain class="sidebar-expand-btn" @click="sidebarOpen = true">
+                <el-icon class="sidebar-expand-ic"><CaretRight /></el-icon>
+                {{ t("detail.sidebarTitle") }}
+              </el-button>
+            </div>
+            <div v-else class="sidebar-panel card-panel">
+              <div class="sidebar-head">
+                <span class="sidebar-head-title">{{ t("detail.sidebarTitle") }}</span>
+                <el-button text type="primary" @click="sidebarOpen = false">{{ t("detail.sidebarCollapse") }}</el-button>
+              </div>
+              <el-collapse v-model="sidebarActivePanels">
+                <el-collapse-item name="scan" :title="t('detail.scanResults')">
+                  <ul class="scan-rows">
+                    <li v-for="row in layers" :key="row.type" class="scan-row">
+                      <div class="scan-row-head">
+                        <span class="scan-row-label">
+                          <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="scan-row-ic spin"><Loading /></el-icon>
+                          <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="scan-row-ic ok"><CircleCheck /></el-icon>
+                          <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="scan-row-ic bad"><CircleClose /></el-icon>
+                          <el-icon v-else class="scan-row-ic warn"><WarningFilled /></el-icon>
+                          {{ layerRowLabel(row.type) }}
+                        </span>
+                        <el-tag size="small" :type="scanTagType(row.scan, detail.status)" effect="plain">
+                          {{ row.scan ? (row.scan.passed ? t("detail.scanPass") : t("detail.scanFail")) : t("detail.tagPendingScan") }}
+                        </el-tag>
+                      </div>
+                    </li>
+                  </ul>
+                </el-collapse-item>
+                <el-collapse-item name="flow" :title="t('detail.taskFlow')">
+                  <el-steps
+                    class="detail-flow-steps"
+                    direction="vertical"
+                    :active="detailFlow.activeStep"
+                    finish-status="success"
+                    :process-status="detailFlow.processStatus"
+                  >
+                    <el-step :title="t('detail.flowUpload')" />
+                    <el-step :title="t('detail.flowScan')" />
+                    <el-step :title="t('detail.flowReview')" />
+                    <el-step :title="t('detail.flowPublish')" />
+                  </el-steps>
+                </el-collapse-item>
+                <el-collapse-item name="meta" :title="t('detail.meta')">
+                  <div class="meta-block">
+                    <p class="meta-block-line">
+                      <span class="meta-k">{{ t("detail.author") }}</span>
+                      <span>{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : t("common.emDash") }}</span>
+                    </p>
+                    <p class="meta-block-line">
+                      <span class="meta-k">{{ t("detail.submittedAt") }}</span>
+                      <span>{{ formatTime(detail.created_at) }}</span>
+                    </p>
+                    <div v-if="detail.homepage_url || detail.repository_url" class="meta-links">
+                      <el-link v-if="detail.homepage_url" :href="detail.homepage_url" target="_blank" rel="noopener noreferrer" type="primary">
+                        {{ t("detail.linkHomepage") }}
+                      </el-link>
+                      <el-link
+                        v-if="detail.repository_url"
+                        :href="detail.repository_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        type="primary"
+                      >
+                        {{ t("detail.linkRepository") }}
+                      </el-link>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </aside>
+        </div>
     </div>
   </div>
 </template>
@@ -305,10 +390,168 @@ onMounted(() => void load());
   gap: 16px;
 }
 
-.detail-main {
+.detail-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.detail-main-column {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+}
+
+.detail-sidebar {
+  flex-shrink: 0;
+  width: 280px;
+}
+
+.detail-sidebar.is-collapsed {
+  width: auto;
+  max-width: 100%;
+}
+
+.sidebar-collapsed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sidebar-expand-btn {
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  justify-content: flex-start;
+}
+
+.sidebar-expand-ic {
+  margin-right: 6px;
+}
+
+.sidebar-panel {
+  padding: 16px 16px 8px;
+  border-radius: var(--radius-card);
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sidebar-head-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.sidebar-panel :deep(.el-collapse) {
+  border: none;
+}
+
+.sidebar-panel :deep(.el-collapse-item__header) {
+  font-weight: 600;
+  color: var(--app-text);
+  border-bottom-color: var(--app-border);
+}
+
+.sidebar-panel :deep(.el-collapse-item__wrap) {
+  border-bottom-color: var(--app-border);
+}
+
+.scan-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scan-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scan-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--app-text);
+  min-width: 0;
+}
+
+.scan-row-ic {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.scan-row-ic.ok {
+  color: var(--el-color-success);
+}
+
+.scan-row-ic.bad {
+  color: var(--el-color-danger);
+}
+
+.scan-row-ic.warn {
+  color: var(--app-muted);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.detail-flow-steps {
+  padding: 4px 0 8px;
+}
+
+.detail-flow-steps :deep(.el-step__title) {
+  font-size: 13px;
+}
+
+.meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--app-text);
+}
+
+.meta-block-line {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.meta-k {
+  color: var(--app-muted);
+  margin-right: 4px;
+}
+
+.meta-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .crumb {
@@ -370,13 +613,6 @@ onMounted(() => void load());
   border-radius: var(--radius-control);
 }
 
-.link-row {
-  margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
 .versions-section {
   display: flex;
   flex-direction: column;
@@ -418,22 +654,15 @@ onMounted(() => void load());
 
 .body {
   margin: 16px 0 0;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--app-text);
   font-size: 14px;
 }
 
-.meta-line {
-  margin-top: 14px;
-  font-size: 13px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.dot {
-  opacity: 0.45;
+.body-desc {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.7;
 }
 
 .actions {
@@ -492,32 +721,27 @@ onMounted(() => void load());
   color: var(--app-text);
 }
 
-.scan-result-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.scan-tag-icon {
-  font-size: 12px;
-}
-
-.spin {
-  color: var(--app-muted);
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .mt {
   margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .detail-layout {
+    flex-direction: column;
+  }
+
+  .detail-sidebar,
+  .detail-sidebar.is-collapsed {
+    width: 100%;
+  }
+
+  .sidebar-collapsed {
+    order: 2;
+  }
+
+  .detail-main-column {
+    order: 1;
+  }
 }
 
 </style>

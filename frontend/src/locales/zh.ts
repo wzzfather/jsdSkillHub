@@ -38,6 +38,7 @@ const zh: Record<string, string> = {
   'login.fail': '登录失败，请检查账号密码',
   'login.brandSub': '企业级 AI Agent 应用商店',
   'login.toRegister': '注册',
+  'auth.sessionExpired': '登录已过期，请重新登录',
 
   // === RegisterView ===
   'register.title': '注册',
@@ -546,6 +547,20 @@ Object.assign(zh, {
   'detail.versionsColChangelog': '更新日志',
   'detail.versionsColCreated': '创建时间',
   'detail.versionsColAuthor': '上传者',
+  'detail.sidebarTitle': '详情信息',
+  'detail.sidebarExpand': '展开详情',
+  'detail.sidebarCollapse': '收起',
+  'detail.scanResults': '扫描结果',
+  'detail.taskFlow': '任务流转',
+  'detail.flowUpload': '上传',
+  'detail.flowScan': '扫描',
+  'detail.flowReview': '审批',
+  'detail.flowPublish': '上架',
+  'detail.flowDone': '已完成',
+  'detail.flowPending': '进行中',
+  'detail.flowWaiting': '等待中',
+  'detail.scanPass': '通过',
+  'detail.scanFail': '未通过',
 
   'flow.stepUpload': '上传',
   'flow.stepScan': '扫描中',

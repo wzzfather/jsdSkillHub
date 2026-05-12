@@ -38,6 +38,7 @@ const en: Record<string, string> = {
   'login.fail': 'Login failed, please check your credentials',
   'login.brandSub': 'Enterprise AI Agent App Store',
   'login.toRegister': 'Register',
+  'auth.sessionExpired': 'Session expired, please login again',
 
   // === RegisterView ===
   'register.title': 'Register',
@@ -551,6 +552,20 @@ Object.assign(en, {
   'detail.versionsColChangelog': 'Changelog',
   'detail.versionsColCreated': 'Created',
   'detail.versionsColAuthor': 'Author',
+  'detail.sidebarTitle': 'Details',
+  'detail.sidebarExpand': 'Show details',
+  'detail.sidebarCollapse': 'Hide',
+  'detail.scanResults': 'Scan Results',
+  'detail.taskFlow': 'Task Flow',
+  'detail.flowUpload': 'Upload',
+  'detail.flowScan': 'Scan',
+  'detail.flowReview': 'Review',
+  'detail.flowPublish': 'Publish',
+  'detail.flowDone': 'Done',
+  'detail.flowPending': 'In progress',
+  'detail.flowWaiting': 'Waiting',
+  'detail.scanPass': 'Pass',
+  'detail.scanFail': 'Fail',
 
   'flow.stepUpload': 'Upload',
   'flow.stepScan': 'Scanning',
