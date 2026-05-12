@@ -1,0 +1,399 @@
+\documentclass[11pt,a4paper]{article}
+
+% === 中文支持 ===
+\usepackage{ctex}
+\usepackage[T1]{fontenc}
+
+% === 页面布局 ===
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+
+% === 表格 ===
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{tabularx}
+
+% === 数学符号 ===
+\usepackage{amssymb}
+
+% === 颜色 ===
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{1a1a2e}
+\definecolor{accent}{HTML}{3b82f6}
+\definecolor{success}{HTML}{22c55e}
+\definecolor{danger}{HTML}{ef4444}
+\definecolor{warning}{HTML}{f59e0b}
+\definecolor{graytext}{HTML}{6b7280}
+\definecolor{progress}{HTML}{8b5cf6}
+
+% === 超链接 ===
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=accent}
+
+% === 标题样式 ===
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{primary}}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{primary}}{}{0em}{}
+
+% === 页眉页脚 ===
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{graytext} 企业级 AI Agent 应用商店 -- 增量需求 DEMAND-016}
+\fancyhead[R]{\small\color{graytext} v1.0}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% === TikZ ===
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit}
+\usepackage{float}
+
+\tikzset{
+  arr/.style={thick, -Stealth},
+  flowstep/.style={rectangle, rounded corners, draw=black, fill=white, thick,
+    minimum width=2.4cm, minimum height=0.8cm, align=center, font=\small},
+  rolehuman/.style={ellipse, draw=blue!60, fill=blue!12, thick,
+    minimum width=2cm, minimum height=0.8cm, align=center, font=\small},
+  rolesys/.style={rectangle, rounded corners, draw=gray!60, fill=gray!12, thick,
+    minimum width=2cm, minimum height=0.8cm, align=center, font=\small},
+  panel/.style={rectangle, rounded corners=4pt, draw=gray!50, fill=gray!4, thick,
+    minimum width=3.5cm, minimum height=1.2cm, align=left, text width=3.2cm, font=\small},
+}
+
+% === 文档信息 ===
+\title{
+\vspace{-1em}
+{\Huge\bfseries\color{primary} DEMAND-016}\\[0.6em]
+{\Large\bfseries\color{accent} 用户设置与个人信息管理}\\[0.4em]
+{\large 增量需求文档}
+}
+\author{
+\textbf{PM AI}：万能产品小助手（OpenClaw）\\[0.3em]
+\textbf{审阅}：魏子政
+}
+\date{2026-05-12 \quad 版本 v1.0}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}p{3cm} p{10cm}}
+\toprule
+需求编号 & DEMAND-016 \\
+需求名称 & 用户设置与个人信息管理 \\
+提出者 & 魏子政 \\
+优先级 & \textcolor{warning}{P1} \\
+状态 & 待开发 \\
+关联需求 & D-015（邮箱认证）、D-008（用户模型） \\
+技术栈 & Vue 3 + Element Plus + FastAPI + SQLAlchemy \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\begin{abstract}
+当前系统右上角用户下拉菜单仅有「退出登录」一项。用户无法查看或修改个人信息（用户名、邮箱、密码等），也无法进行偏好设置。本需求补充完整的用户自管理功能，包括个人资料编辑、密码修改、界面偏好设置。
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{背景与问题}
+% ============================================================
+
+\subsection{当前状态}
+
+\begin{itemize}[nosep]
+  \item 用户模型（\texttt{User}）字段：\texttt{username}, \texttt{hashed\_password}, \texttt{email}, \texttt{email\_verified}, \texttt{role}, \texttt{is\_active}
+  \item 前端右上角下拉菜单：仅有「退出登录」
+  \item 后端 API：仅有注册、登录、发送验证码、验证邮箱（\texttt{/api/auth/*}）
+  \item 无「查看个人信息」接口，无「修改个人信息」接口，无「修改密码」接口
+\end{itemize}
+
+\subsection{用户痛点}
+
+\begin{itemize}[nosep]
+  \item 无法查看当前账号的注册信息（用户名、邮箱、角色）
+  \item 无法修改密码
+  \item 无法更新邮箱或重新发送验证邮件
+  \item 无法切换界面语言偏好（虽然当前有 i18n，但无持久化设置）
+\end{itemize}
+
+% ============================================================
+\section{需求描述}
+% ============================================================
+
+\subsection{总体目标}
+
+在右上角下拉菜单中新增「个人设置」入口，点击后进入独立的用户设置页面，支持以下功能模块：
+
+\begin{enumerate}[nosep]
+  \item \textbf{个人资料}：查看和编辑用户名、邮箱
+  \item \textbf{账号安全}：修改密码
+  \item \textbf{界面偏好}：语言切换（中文/英文），主题切换（亮/暗）
+\end{enumerate}
+
+\subsection{页面布局设计}
+
+设置页面采用经典的左侧 Tab + 右侧内容区的布局结构。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[transform shape, scale=0.85,
+    node distance=0.4cm and 0.5cm,
+  ]
+  % 外框
+  \draw[thick, rounded corners=6pt, fill=gray!3] (0,0) rectangle (12.5, 7.2);
+
+  % 面包屑
+  \node[anchor=north west, font=\small\color{graytext}] at (0.3, 6.9) {首页 > 个人设置};
+
+  % 标题
+  \node[anchor=north west, font=\Large\bfseries\color{primary}] at (0.3, 6.3) {个人设置};
+
+  % 左侧 Tab 栏
+  \draw[thick, rounded corners=3pt, fill=white] (0.3, 0.5) rectangle (3.3, 5.5);
+  \node[anchor=north west, font=\small\bfseries] at (0.6, 5.3) {设置菜单};
+  \draw[thick, fill=accent!10, rounded corners=2pt] (0.5, 4.2) rectangle (3.1, 4.7);
+  \node[font=\small\bfseries\color{accent}] at (1.8, 4.45) {个人资料};
+  \node[font=\small] at (1.8, 3.6) {账号安全};
+  \node[font=\small] at (1.8, 2.8) {界面偏好};
+  \node[font=\small] at (1.8, 2.0) {关于};
+
+  % 右侧内容区 - 个人资料
+  \draw[thick, rounded corners=3pt, fill=white] (3.8, 0.5) rectangle (12.2, 5.5);
+
+  \node[anchor=north west, font=\large\bfseries\color{primary}] at (4.1, 5.3) {个人资料};
+
+  % 头像区
+  \draw[thick, circle, fill=accent!15, minimum size=1.2cm] (5.2, 4.3) circle (0.55);
+  \node[font=\Large\bfseries\color{accent}] at (5.2, 4.3) {U};
+  \node[font=\scriptsize\color{accent}, anchor=west] at (6.0, 4.3) {更换头像（V2）};
+
+  % 表单字段
+  \node[anchor=west, font=\small\color{graytext}] at (4.2, 3.5) {用户名};
+  \draw[thick, rounded corners=2pt] (4.2, 2.9) rectangle (11.5, 3.3);
+  \node[anchor=west, font=\small] at (4.4, 3.1) {current\_username};
+
+  \node[anchor=west, font=\small\color{graytext}] at (4.2, 2.5) {邮箱地址};
+  \draw[thick, rounded corners=2pt] (4.2, 1.9) rectangle (11.5, 2.3);
+  \node[anchor=west, font=\small] at (4.4, 2.1) {user@example.com};
+  \node[anchor=east, font=\scriptsize\color{success}] at (11.3, 2.1) {已验证};
+  % 或 \node[...] {未验证，重新发送验证邮件}
+
+  \node[anchor=west, font=\small\color{graytext}] at (4.2, 1.5) {账号角色};
+  \draw[thick, rounded corners=2pt, fill=gray!8] (4.2, 0.9) rectangle (11.5, 1.3);
+  \node[anchor=west, font=\small\color{graytext}] at (4.4, 1.1) {普通用户 / 管理员（只读）};
+
+  % 保存按钮
+  \draw[thick, rounded corners=3pt, fill=accent, text=white] (4.2, 0.6) rectangle (6.2, 0.85);
+  \node[font=\small\bfseries\color{white}] at (5.2, 0.72) {保存修改};
+
+\end{tikzpicture}
+\caption{用户设置页面布局 — 个人资料 Tab}
+\label{fig:settings-layout}
+\end{figure}
+
+\subsection{三个 Tab 的详细内容}
+
+\subsubsection{Tab 1：个人资料}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llp{5cm}c}
+\toprule
+\textbf{字段} & \textbf{类型} & \textbf{说明} & \textbf{可编辑} \\
+\midrule
+用户头像 & 显示 & 首字母头像（V2 支持上传） & V2 \\
+用户名 & 输入框 & 2-64 字符，唯一性校验 & 是 \\
+邮箱地址 & 输入框 & 标准邮箱格式，唯一性校验 & 是 \\
+邮箱验证状态 & 标签 & 已验证（绿）/ 未验证（橙），未验证时显示「重新发送验证邮件」链接 & 只读 \\
+账号角色 & 标签 & 管理员 / 普通用户 & 只读 \\
+注册时间 & 文本 & 格式化日期 & 只读 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{交互规则}：
+\begin{itemize}[nosep]
+  \item 修改用户名：实时校验唯一性（防抖 500ms），保存时二次校验
+  \item 修改邮箱：保存后触发重新验证流程（发送验证码邮件），邮箱验证状态重置为「未验证」
+  \item 保存成功后刷新页面状态，右上角头像文字同步更新
+\end{itemize}
+
+\subsubsection{Tab 2：账号安全}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{字段} & \textbf{类型} & \textbf{说明} \\
+\midrule
+当前密码 & 密码框 & 必填，验证身份 \\
+新密码 & 密码框 & 8-64 字符，需包含字母+数字 \\
+确认新密码 & 密码框 & 必须与新密码一致 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{交互规则}：
+\begin{itemize}[nosep]
+  \item 修改密码前必须验证当前密码
+  \item 新密码强度校验：至少 8 位，包含字母和数字
+  \item 修改成功后自动刷新 Token（相当于重新登录），不跳转到登录页
+  \item 连续输错 5 次当前密码，锁定 15 分钟（V2）
+\end{itemize}
+
+\subsubsection{Tab 3：界面偏好}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llp{5cm}}
+\toprule
+\textbf{设置项} & \textbf{类型} & \textbf{说明} \\
+\midrule
+界面语言 & 单选 & 中文 / English，即时生效，持久化到 localStorage \\
+主题模式 & 开关 & 亮色 / 暗色（当前已有暗色主题变量，需持久化开关状态） \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{交互规则}：
+\begin{itemize}[nosep]
+  \item 语言切换即时生效，刷新页面后保持
+  \item 主题切换即时生效，刷新页面后保持
+  \item 偏好设置保存在 localStorage（MVP 阶段），V2 可同步到后端用户配置
+\end{itemize}
+
+% ============================================================
+\section{后端 API 设计}
+% ============================================================
+
+\subsection{新增接口}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llp{4cm}p{4cm}}
+\toprule
+\textbf{方法} & \textbf{路径} & \textbf{说明} & \textbf{请求/响应} \\
+\midrule
+GET & \texttt{/api/auth/me} & 获取当前用户信息 & 响应：\texttt{\{username, email, email\_verified, role, created\_at\}} \\
+PUT & \texttt{/api/auth/me} & 修改个人资料 & 请求：\texttt{\{username?, email?\}}，响应：更新后的用户信息 \\
+PUT & \texttt{/api/auth/change-password} & 修改密码 & 请求：\texttt{\{current\_password, new\_password\}}，响应：新 Token \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{接口细节}：
+
+\texttt{GET /api/auth/me}：
+\begin{itemize}[nosep]
+  \item 需要 Bearer Token
+  \item 返回 \texttt{UserPublic}（复用注册时的响应模型）+ \texttt{created\_at}
+  \item 不返回 \texttt{hashed\_password}、\texttt{is\_active} 等敏感字段
+\end{itemize}
+
+\texttt{PUT /api/auth/me}：
+\begin{itemize}[nosep]
+  \item 字段均为可选（partial update），只传需要修改的字段
+  \item 修改用户名：校验唯一性（排除自身），2-64 字符
+  \item 修改邮箱：校验唯一性（排除自身）、格式校验，修改后 \texttt{email\_verified} 重置为 false
+  \item 修改邮箱后自动触发验证码发送（如 SMTP 已配置）
+\end{itemize}
+
+\texttt{PUT /api/auth/change-password}：
+\begin{itemize}[nosep]
+  \item 验证 \texttt{current\_password} 正确性
+  \item 新密码强度校验
+  \item 返回新 Token（旧 Token 失效）
+\end{itemize}
+
+\subsection{前端路由}
+
+新增路由：
+\begin{itemize}[nosep]
+  \item \texttt{/settings} $\to$ \texttt{SettingsView.vue}（需登录）
+\end{itemize}
+
+右上角下拉菜单更新：
+\begin{itemize}[nosep]
+  \item 新增「个人设置」菜单项（排在「退出登录」之前）
+  \item 点击跳转 \texttt{/settings}
+\end{itemize}
+
+% ============================================================
+\section{任务分解}
+% ============================================================
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{clp{5cm}c}
+\toprule
+\textbf{序号} & \textbf{任务} & \textbf{说明} & \textbf{预估} \\
+\midrule
+1 & 后端：用户信息查询接口 & \texttt{GET /api/auth/me}，返回 UserPublic + created\_at & 0.5h \\
+2 & 后端：用户信息修改接口 & \texttt{PUT /api/auth/me}，支持用户名/邮箱修改 & 0.5h \\
+3 & 后端：修改密码接口 & \texttt{PUT /api/auth/change-password} & 0.5h \\
+4 & 前端：SettingsView 页面 & 三 Tab 布局，表单交互 & 2h \\
+5 & 前端：API 函数 \& i18n & 前端 API 封装 + 中英文翻译 & 0.5h \\
+6 & 前端：路由 \& 导航菜单 & 新增 /settings 路由，下拉菜单添加入口 & 0.5h \\
+7 & 联调 \& 测试 & 接口联调、表单校验、边界测试 & 1h \\
+\midrule
+ & & \textbf{合计} & \textbf{5.5h} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{验收标准}
+% ============================================================
+
+\begin{enumerate}[nosep]
+  \item[\textcolor{success}{\checkmark}] 右上角下拉菜单有「个人设置」和「退出登录」两个选项
+  \item[\textcolor{graytext}{$\square$}] 点击「个人设置」进入设置页面，左 Tab 右内容布局
+  \item[\textcolor{graytext}{$\square$}] 「个人资料」Tab 可查看用户名、邮箱、角色、注册时间
+  \item[\textcolor{graytext}{$\square$}] 修改用户名：保存成功，唯一性冲突时提示
+  \item[\textcolor{graytext}{$\square$}] 修改邮箱：保存成功，验证状态重置为「未验证」
+  \item[\textcolor{graytext}{$\square$}] 「账号安全」Tab：输入当前密码 + 新密码，修改成功后自动刷新 Token
+  \item[\textcolor{graytext}{$\square$}] 「界面偏好」Tab：语言/主题切换即时生效，刷新后保持
+  \item[\textcolor{graytext}{$\square$}] 全部表单有中文/英文 i18n
+  \item[\textcolor{graytext}{$\square$}] 未登录状态访问 \texttt{/settings} 跳转登录页
+\end{enumerate}
+
+% ============================================================
+\section{V2 远期规划}
+% ============================================================
+
+\begin{itemize}[nosep]
+  \item 用户头像上传（MinIO 存储）
+  \item 修改密码连续错误锁定机制
+  \item 偏好设置同步到后端（跨设备一致）
+  \item 通知设置（邮件通知开关）
+  \item API Token 管理（生成/吊销个人访问令牌）
+\end{itemize}
+
+% ============================================================
+\section*{更新记录}
+% ============================================================
+
+\begin{tabular}{lll}
+\toprule
+版本 & 日期 & 变更内容 \\
+\midrule
+v1.0 & 2026-05-12 & 初始版本 \\
+\bottomrule
+\end{tabular}
+
+\end{document}
