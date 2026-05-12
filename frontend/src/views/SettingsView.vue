@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import "vue-picture-cropper/style.css";
+import "cropperjs/dist/cropper.css";
 import { useCropper } from "vue-picture-cropper";
 import { useLocale } from "@/locales";
 import { useAuthStore } from "@/stores/auth";
@@ -439,7 +441,7 @@ onUnmounted(() => {
       @close="cancelCrop"
     >
       <div class="crop-container">
-        <CropperComponent :box-style="{ width: '100%', height: '340px', background: '#f5f5f5' }" />
+        <CropperComponent :box-style="{ width: '100%', height: '100%' }" />
       </div>
       <template #footer>
         <el-button @click="cancelCrop">{{ t('common.cancel') }}</el-button>
@@ -554,6 +556,14 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--app-text);
   margin-bottom: 10px;
+}
+
+.crop-container {
+  width: 100%;
+  height: 360px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f5f5f5;
 }
 
 @media (max-width: 768px) {
