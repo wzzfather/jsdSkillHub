@@ -8,9 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import create_access_token
+from app.dependencies import create_access_token, get_current_user
 from app.models.user import User
 from app.services.audit_service import log_action
+from app.services.profile_service import apply_password_change, update_user_profile, user_to_me_response
 from app.routers.captcha import verify_captcha
 from app.schemas.common import (
     LoginRequest,
@@ -21,6 +22,7 @@ from app.schemas.common import (
     UserPublic,
     VerifyCodeRequest,
 )
+from app.schemas.user import ChangePasswordRequest, UpdateProfileRequest, UserMeResponse
 from app.utils.password import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
@@ -159,4 +161,36 @@ async def verify_email(
     del _email_codes[email]
 
     token = create_access_token(subject=str(user.id))
+    return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserMeResponse)
+async def read_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserMeResponse:
+    return user_to_me_response(current_user)
+
+
+@router.put("/me", response_model=UserMeResponse)
+async def update_me(
+    body: UpdateProfileRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> UserMeResponse:
+    await update_user_profile(db, current_user, body)
+    await db.commit()
+    await db.refresh(current_user)
+    return user_to_me_response(current_user)
+
+
+@router.put("/change-password", response_model=TokenResponse)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenResponse:
+    apply_password_change(current_user, body.current_password, body.new_password)
+    db.add(current_user)
+    await db.commit()
+    token = create_access_token(subject=str(current_user.id))
     return TokenResponse(access_token=token)

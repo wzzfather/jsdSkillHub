@@ -64,6 +64,11 @@ function onLangCommand(cmd: string) {
   setLocale(cmd as 'zh' | 'en');
 }
 
+function onUserMenu(cmd: string) {
+  if (cmd === "settings") router.push({ name: "settings" });
+  else if (cmd === "logout") logout();
+}
+
 onMounted(() => {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "dark") {
@@ -142,13 +147,14 @@ onMounted(() => {
             {{ t("nav.register") }}
           </button>
         </template>
-        <el-dropdown v-else trigger="click" @command="(c: string) => c === 'logout' && logout()">
+        <el-dropdown v-else trigger="click" @command="onUserMenu">
           <span class="user-trigger">
             <span class="user-avatar" :title="auth.userId || t('user.fallbackTitle')">{{ userInitial }}</span>
             <el-icon class="user-chevron"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item command="settings">{{ t("nav.settings") }}</el-dropdown-item>
               <el-dropdown-item command="logout">{{ t("nav.logout") }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>

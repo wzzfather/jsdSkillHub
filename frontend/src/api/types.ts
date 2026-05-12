@@ -88,6 +88,15 @@ export interface UserPublic {
   email_verified: boolean;
 }
 
+/** GET/PUT /api/auth/me 响应（ISO 8601 时间的 created_at） */
+export interface UserMeResponse {
+  username: string;
+  email: string | null;
+  email_verified: boolean;
+  role: string;
+  created_at: string;
+}
+
 export interface SendCodeResponse {
   message: string;
   code: string;

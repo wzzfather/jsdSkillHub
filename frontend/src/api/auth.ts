@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { UserPublic, SendCodeResponse } from "./types";
+import type { UserPublic, UserMeResponse, SendCodeResponse } from "./types";
 
 export interface CaptchaImageResponse {
   captcha_id: string;
@@ -32,4 +32,19 @@ export async function sendCode(email: string) {
 
 export async function verifyEmail(email: string, code: string) {
   return api.post<{ access_token: string; token_type: string }>("/auth/verify-email", { email, code });
+}
+
+/** GET /api/auth/me — 当前登录用户资料 */
+export async function fetchCurrentUser() {
+  return api.get<UserMeResponse>("/auth/me");
+}
+
+/** PUT /api/auth/me — 更新用户名 / 邮箱（至少一项；服务端校验唯一性与格式） */
+export async function updateProfile(data: { username?: string; email?: string | null }) {
+  return api.put<UserMeResponse>("/auth/me", data);
+}
+
+/** PUT /api/auth/change-password — 修改密码，响应含新 access_token */
+export async function changePassword(data: { current_password: string; new_password: string }) {
+  return api.put<{ access_token: string; token_type: string }>("/auth/change-password", data);
 }

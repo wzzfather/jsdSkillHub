@@ -15,6 +15,7 @@ const AdminAppsView = () => import("@/views/AdminAppsView.vue");
 const DashboardView = () => import("@/views/DashboardView.vue");
 const DocsView = () => import("@/views/DocsView.vue");
 const HelpView = () => import("@/views/HelpView.vue");
+const SettingsView = () => import("@/views/SettingsView.vue");
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -53,6 +54,12 @@ export const router = createRouter({
     { path: "/docs", name: "docs", component: DocsView },
     { path: "/help", name: "help", component: HelpView },
     { path: "/dashboard", name: "dashboard", component: DashboardView, meta: { requiresAuth: true } },
+    {
+      path: "/settings",
+      name: "settings",
+      component: SettingsView,
+      meta: { requiresAuth: true },
+    },
   ],
 });
 
