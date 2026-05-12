@@ -3,7 +3,7 @@ import random
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,12 @@ from app.database import get_db
 from app.dependencies import create_access_token, get_current_user
 from app.models.user import User
 from app.services.audit_service import log_action
-from app.services.profile_service import apply_password_change, update_user_profile, user_to_me_response
+from app.services.profile_service import (
+    apply_password_change,
+    apply_user_avatar_upload,
+    update_user_profile,
+    user_to_me_response,
+)
 from app.routers.captcha import verify_captcha
 from app.schemas.common import (
     LoginRequest,
@@ -22,7 +27,7 @@ from app.schemas.common import (
     UserPublic,
     VerifyCodeRequest,
 )
-from app.schemas.user import ChangePasswordRequest, UpdateProfileRequest, UserMeResponse
+from app.schemas.user import AvatarUploadResponse, ChangePasswordRequest, UpdateProfileRequest, UserMeResponse
 from app.utils.password import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
@@ -169,6 +174,25 @@ async def read_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> UserMeResponse:
     return user_to_me_response(current_user)
+
+
+@router.post("/avatar", response_model=AvatarUploadResponse)
+async def upload_avatar(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    avatar: UploadFile = File(...),
+) -> AvatarUploadResponse:
+    raw = await avatar.read()
+    url = await apply_user_avatar_upload(
+        db,
+        current_user,
+        filename=avatar.filename,
+        content_type=avatar.content_type,
+        raw=raw,
+    )
+    await db.commit()
+    await db.refresh(current_user)
+    return AvatarUploadResponse(avatar_url=url)
 
 
 @router.put("/me", response_model=UserMeResponse)

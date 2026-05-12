@@ -48,3 +48,10 @@ export async function updateProfile(data: { username?: string; email?: string | 
 export async function changePassword(data: { current_password: string; new_password: string }) {
   return api.put<{ access_token: string; token_type: string }>("/auth/change-password", data);
 }
+
+/** POST /api/auth/avatar — multipart form-data，字段名 avatar */
+export async function uploadAvatar(file: File) {
+  const body = new FormData();
+  body.append("avatar", file);
+  return api.post<{ avatar_url: string }>("/auth/avatar", body);
+}

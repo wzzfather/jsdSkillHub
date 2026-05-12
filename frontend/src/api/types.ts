@@ -94,6 +94,7 @@ export interface UserMeResponse {
   email: string | null;
   email_verified: boolean;
   role: string;
+  avatar_url: string | null;
   created_at: string;
 }
 

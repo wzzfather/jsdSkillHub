@@ -44,6 +44,13 @@ async def upload_bytes(key: str, data: bytes, content_type: str = "application/z
     return f"{base}/{s.minio_bucket}/{key}"
 
 
+def http_object_url(key: str, *, external: bool = False) -> str:
+    """拼接桶对象的 HTTP 路径式 URL；浏览器访问应使用 external=True（MINIO_EXTERNAL_URL）。"""
+    s = get_settings()
+    base = (s.minio_external_url if external else s.minio_endpoint_url).rstrip("/")
+    return f"{base}/{s.minio_bucket}/{key}"
+
+
 def generate_download_url(key: str, expires: int = 3600) -> str:
     """使用 boto3 / S3 API 生成临时 GET 预签名 URL（默认 3600 秒）。
 

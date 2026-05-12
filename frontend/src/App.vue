@@ -16,12 +16,6 @@ const isDark = ref(false);
 const isAuthed = computed(() => !!auth.token);
 const isAdmin = computed(() => auth.isAdmin);
 
-const userInitial = computed(() => {
-  const id = auth.userId?.trim() ?? "";
-  const c = id.charAt(0);
-  return c ? c.toUpperCase() : "?";
-});
-
 function logout() {
   auth.clear();
   router.push({ name: "explore" });
@@ -149,7 +143,13 @@ onMounted(() => {
         </template>
         <el-dropdown v-else trigger="click" @command="onUserMenu">
           <span class="user-trigger">
-            <span class="user-avatar" :title="auth.userId || t('user.fallbackTitle')">{{ userInitial }}</span>
+            <span
+              class="user-avatar"
+              :title="auth.profileUsername?.trim() || auth.userId || t('user.fallbackTitle')"
+            >
+              <img v-if="auth.avatarUrl" :src="auth.avatarUrl" class="user-avatar-img" alt="" />
+              <template v-else>{{ auth.headerInitial }}</template>
+            </span>
             <el-icon class="user-chevron"><ArrowDown /></el-icon>
           </span>
           <template #dropdown>
@@ -352,6 +352,14 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .user-chevron {

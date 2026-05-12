@@ -13,5 +13,6 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     skills_authored = relationship("Skill", back_populates="author")

@@ -13,9 +13,14 @@ class UserMeResponse(BaseModel):
     email: str | None = None
     email_verified: bool = False
     role: str
+    avatar_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AvatarUploadResponse(BaseModel):
+    avatar_url: str
 
 
 class UpdateProfileRequest(BaseModel):

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import type { UploadRequestOptions } from "element-plus";
 import { ElMessage } from "element-plus";
 import { useLocale } from "@/locales";
 import { useAuthStore } from "@/stores/auth";
@@ -8,6 +9,7 @@ import {
   fetchCurrentUser,
   sendCode,
   updateProfile,
+  uploadAvatar,
 } from "@/api/auth";
 import type { UserMeResponse } from "@/api/types";
 
@@ -36,6 +38,8 @@ const passwordSaving = ref(false);
 const currentPassword = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
+
+const avatarUploading = ref(false);
 
 /** 偏好 Tab：开关 ON = 暗色（与 document.documentElement.dark 一致） */
 const prefDark = ref(false);
@@ -113,6 +117,7 @@ async function saveProfile() {
     me.value = data;
     username.value = data.username;
     email.value = data.email ?? "";
+    await auth.refreshMe();
     ElMessage.success(t("settings.saveSuccess"));
   } catch (e) {
     ElMessage.error(apiErrorDetail(e));
@@ -152,6 +157,41 @@ async function submitPasswordChange() {
     ElMessage.error(apiErrorDetail(e));
   } finally {
     passwordSaving.value = false;
+  }
+}
+
+function beforeAvatarUpload(file: File) {
+  const allowedMime = ["image/jpeg", "image/png", "image/webp"];
+  const okExt = /\.(jpe?g|png|webp)$/i.test(file.name);
+  if (!okExt) {
+    ElMessage.warning(t("settings.avatarFormat"));
+    return false;
+  }
+  if (file.type && !allowedMime.includes(file.type)) {
+    ElMessage.warning(t("settings.avatarFormat"));
+    return false;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning(t("settings.avatarTooLarge"));
+    return false;
+  }
+  return true;
+}
+
+async function handleAvatarRequest(opt: UploadRequestOptions) {
+  avatarUploading.value = true;
+  try {
+    await uploadAvatar(opt.file as File);
+    ElMessage.success(t("settings.avatarSuccess"));
+    const { data } = await fetchCurrentUser();
+    me.value = data;
+    username.value = data.username;
+    email.value = data.email ?? "";
+    await auth.refreshMe();
+  } catch (e) {
+    ElMessage.error(apiErrorDetail(e));
+  } finally {
+    avatarUploading.value = false;
   }
 }
 
@@ -222,7 +262,18 @@ onUnmounted(() => {
         <el-tab-pane :label="t('settings.profile')" name="profile">
           <div class="tab-body">
             <div class="avatar-block">
-              <div class="avatar-lg" :aria-label="t('settings.avatar')">{{ avatarLetter }}</div>
+              <el-upload
+                class="avatar-uploader"
+                :show-file-list="false"
+                accept="image/jpeg,image/png,image/webp"
+                :before-upload="beforeAvatarUpload"
+                :http-request="handleAvatarRequest"
+              >
+                <div class="avatar-lg" v-loading="avatarUploading" :aria-label="t('settings.avatarUpload')">
+                  <img v-if="me?.avatar_url" :src="me.avatar_url" class="avatar-photo" alt="" />
+                  <template v-else>{{ avatarLetter }}</template>
+                </div>
+              </el-upload>
               <span class="muted avatar-v2">{{ t("settings.avatarUpload") }}</span>
             </div>
 
@@ -353,6 +404,21 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
+.avatar-uploader :deep(.el-upload) {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.avatar-uploader :deep(.el-upload:focus) {
+  outline: none;
+}
+
+.avatar-uploader :deep(.el-upload:focus-visible .avatar-lg) {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary) 35%, transparent);
+}
+
 .avatar-lg {
   width: 72px;
   height: 72px;
@@ -365,6 +431,15 @@ onUnmounted(() => {
   font-size: 28px;
   font-weight: 800;
   flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .avatar-v2 {
