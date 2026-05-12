@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import type { UploadRequestOptions } from "element-plus";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import VuePictureCropper from "vue-picture-cropper";
-import type { Cropper } from "vue-picture-cropper/dist/types";
+import { useCropper } from "vue-picture-cropper";
 import { useLocale } from "@/locales";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -46,7 +44,22 @@ const avatarUploading = ref(false);
 /* ---- 裁切弹窗 ---- */
 const cropDialogVisible = ref(false);
 const cropImageSrc = ref("");
-const cropperInstance = ref<Cropper | null>(null);
+
+const [CropperComponent, cropper] = useCropper(
+  computed(() => ({
+    img: cropImageSrc.value,
+    options: {
+      viewMode: 1,
+      dragMode: "move" as const,
+      aspectRatio: 1,
+      autoCropArea: 0.85,
+      cropBoxResizable: true,
+      cropBoxMovable: false,
+    },
+  })),
+);
+
+const fileInput = ref<HTMLInputElement | null>(null);
 
 /** 偏好 Tab：开关 ON = 暗色（与 document.documentElement.dark 一致） */
 const prefDark = ref(false);
@@ -185,44 +198,41 @@ function beforeAvatarUpload(file: File) {
   return true;
 }
 
-async function handleAvatarRequest(opt: UploadRequestOptions) {
-  const file = opt.file as File;
+function triggerAvatarPick() {
+  fileInput.value?.click();
+}
+
+function onFileSelected(e: Event) {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
   if (!beforeAvatarUpload(file)) {
+    target.value = "";
     return;
   }
-  // 用 FileReader 转成 base64 给裁切组件
   const reader = new FileReader();
-  reader.onload = (e) => {
-    cropImageSrc.value = e.target?.result as string;
+  reader.onload = (ev) => {
+    cropImageSrc.value = ev.target?.result as string;
     cropDialogVisible.value = true;
   };
   reader.readAsDataURL(file);
-}
-
-function onCropperReady(cropper: Cropper) {
-  cropperInstance.value = cropper;
+  target.value = "";
 }
 
 async function confirmCrop() {
-  if (!cropperInstance.value) return;
-  const canvas = cropperInstance.value.getCroppedCanvas({
+  const file = await cropper.getFile({
     width: 256,
     height: 256,
     fillColor: "#fff",
+    fileName: "avatar.webp",
   });
-  if (!canvas) {
-    ElMessage.error(t("settings.avatarCropFail"));
-    return;
-  }
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.9));
-  if (!blob) {
+  if (!file) {
     ElMessage.error(t("settings.avatarCropFail"));
     return;
   }
   cropDialogVisible.value = false;
   avatarUploading.value = true;
   try {
-    const file = new File([blob], "avatar.webp", { type: "image/webp" });
     await uploadAvatar(file);
     ElMessage.success(t("settings.avatarSuccess"));
     const { data } = await fetchCurrentUser();
@@ -240,7 +250,6 @@ async function confirmCrop() {
 function cancelCrop() {
   cropDialogVisible.value = false;
   cropImageSrc.value = "";
-  cropperInstance.value = null;
 }
 
 async function resendVerification() {
@@ -310,18 +319,26 @@ onUnmounted(() => {
         <el-tab-pane :label="t('settings.profile')" name="profile">
           <div class="tab-body">
             <div class="avatar-block">
-              <el-upload
-                class="avatar-uploader"
-                :show-file-list="false"
+              <input
+                ref="fileInput"
+                type="file"
                 accept="image/jpeg,image/png,image/webp"
-                :before-upload="beforeAvatarUpload"
-                :http-request="handleAvatarRequest"
+                class="avatar-file-input"
+                @change="onFileSelected"
+              />
+              <div
+                class="avatar-lg"
+                role="button"
+                tabindex="0"
+                v-loading="avatarUploading"
+                :aria-label="t('settings.avatarUpload')"
+                @click="triggerAvatarPick"
+                @keydown.enter.prevent="triggerAvatarPick"
+                @keydown.space.prevent="triggerAvatarPick"
               >
-                <div class="avatar-lg" v-loading="avatarUploading" :aria-label="t('settings.avatarUpload')">
-                  <img v-if="me?.avatar_url" :src="me.avatar_url" class="avatar-photo" alt="" />
-                  <template v-else>{{ avatarLetter }}</template>
-                </div>
-              </el-upload>
+                <img v-if="me?.avatar_url" :src="me.avatar_url" class="avatar-photo" alt="" />
+                <template v-else>{{ avatarLetter }}</template>
+              </div>
               <span class="muted avatar-v2">{{ t("settings.avatarUpload") }}</span>
             </div>
 
@@ -422,19 +439,7 @@ onUnmounted(() => {
       @close="cancelCrop"
     >
       <div class="crop-container">
-        <VuePictureCropper
-          :box-style="{ width: '100%', height: '340px', background: '#f5f5f5' }"
-          :img="cropImageSrc"
-          :options="{
-            viewMode: 1,
-            dragMode: 'move',
-            aspectRatio: 1,
-            autoCropArea: 0.85,
-            cropBoxResizable: true,
-            cropBoxMovable: false,
-          }"
-          @crop-ready="onCropperReady"
-        />
+        <CropperComponent :box-style="{ width: '100%', height: '340px', background: '#f5f5f5' }" />
       </div>
       <template #footer>
         <el-button @click="cancelCrop">{{ t('common.cancel') }}</el-button>
@@ -477,24 +482,26 @@ onUnmounted(() => {
 }
 
 .avatar-block {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
 }
 
-.avatar-uploader :deep(.el-upload) {
-  border: none;
-  background: transparent;
+.avatar-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  margin: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.avatar-uploader :deep(.el-upload:focus) {
-  outline: none;
-}
-
-.avatar-uploader :deep(.el-upload:focus-visible .avatar-lg) {
+.avatar-lg:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-primary) 35%, transparent);
 }
 
