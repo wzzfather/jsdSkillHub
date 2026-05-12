@@ -201,14 +201,15 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
+    transform shape, scale=0.75,
     node distance=0.95cm and 0.55cm,
   ]
   \node[flowstep] (n1) {需求新增};
-  \node[flowstep, right=1.6cm of n1] (n2) {PM 评估};
-  \node[flowstep, right=1.6cm of n2] (n3) {拆解分配};
-  \node[flowstep, right=1.6cm of n3] (n4) {Cursor 执行};
-  \node[decision, right=1.4cm of n4] (n5) {PM\\验收};
-  \node[flowstep, right=1.6cm of n5] (ok) {通过结案};
+  \node[flowstep, right=1.2cm of n1] (n2) {PM 评估};
+  \node[flowstep, right=1.2cm of n2] (n3) {拆解分配};
+  \node[flowstep, right=1.2cm of n3] (n4) {Cursor 执行};
+  \node[decision, right=1.0cm of n4] (n5) {PM\\验收};
+  \node[flowstep, right=1.2cm of n5] (ok) {通过结案};
 
   \draw[arr] (n1) -- (n2);
   \draw[arr] (n2) to[bend left=18] node[above, sloped, font=\scriptsize] {P0 紧急} (n3);
@@ -217,7 +218,7 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
   \draw[arr] (n3) -- (n4);
   \draw[arr] (n4) -- (n5);
   \draw[arr] (n5) -- node[above] {通过} (ok);
-  \draw[arr] (n5.south) -- +(0,-0.42) -| node[pos=0.32, left, font=\scriptsize] {不通过} (n4.south);
+  \draw[arr] (n5.south) -- +(0,-0.35) -| node[pos=0.32, left, font=\scriptsize] {不通过} (n4.south);
 \end{tikzpicture}
 \caption{需求变更流程}
 \label{fig:d005-change-flow}
@@ -278,8 +279,9 @@ D-019 & SkillHub CLI & jsdhub：login/search/install/download（\texttt{pip inst
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
+    transform shape,
     node distance=0.75cm and 0.9cm,
-    scale=0.82,
+    scale=0.75,
     transform shape,
   ]
   \node[rolehuman] (a1) {魏子政\\[-2pt]\scriptsize （甲方）};
@@ -371,6 +373,7 @@ Skill 完整生命周期（上传、三层扫描、审批与上架）如下图�
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
+    transform shape, scale=0.78,
     node distance=0.7cm and 0.65cm,
   ]
   \node[flowstep] (u) {用户上传 ZIP};
@@ -445,6 +448,7 @@ Skill 完整生命周期（上传、三层扫描、审批与上架）如下图�
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
+    transform shape, scale=0.78,
     node distance=1.05cm and 1.15cm,
   ]
   \node[statebox, fill=yellow!12, draw=warning!80!black] (st0) {草稿};
