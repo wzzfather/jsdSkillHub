@@ -24,7 +24,6 @@ const versionsLoading = ref(false);
 const versionsLoadFailed = ref(false);
 const cliInstallInputRef = ref<InputInstance>();
 const sidebarOpen = ref(false);
-const sidebarActivePanels = ref(["scan", "flow", "meta"]);
 
 function skillDisplayTitle(skill: Pick<SkillDetail, "name" | "namespace">) {
   const ns = skill.namespace?.trim();
@@ -222,6 +221,13 @@ onMounted(() => void load());
                 <div class="title-block">
                   <h1 class="title">{{ skillDisplayTitle(detail) }}</h1>
                   <div class="title-tags">
+                    <el-tag v-for="row in layers" :key="row.type" size="small" :type="scanTagType(row.scan, detail.status)" effect="dark" class="scan-result-tag">
+                      <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="scan-tag-icon spin"><Loading /></el-icon>
+                      <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="scan-tag-icon"><CircleCheck /></el-icon>
+                      <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="scan-tag-icon"><CircleClose /></el-icon>
+                      <el-icon v-else class="scan-tag-icon"><WarningFilled /></el-icon>
+                      {{ layerRowLabel(row.type) }}
+                    </el-tag>
                     <el-tag v-if="detail.status === 'deprecated'" effect="dark" type="warning">{{ t("detail.deprecatedBadge") }}</el-tag>
                     <el-tag effect="light" type="info">{{ statusLabel(detail.status) }}</el-tag>
                     <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
@@ -308,74 +314,26 @@ onMounted(() => void load());
             <div v-if="!sidebarOpen" class="sidebar-collapsed">
               <el-button type="primary" plain class="sidebar-expand-btn" @click="sidebarOpen = true">
                 <el-icon class="sidebar-expand-ic"><CaretRight /></el-icon>
-                {{ t("detail.sidebarTitle") }}
+                {{ t("detail.taskFlow") }}
               </el-button>
             </div>
             <div v-else class="sidebar-panel card-panel">
               <div class="sidebar-head">
-                <span class="sidebar-head-title">{{ t("detail.sidebarTitle") }}</span>
+                <span class="sidebar-head-title">{{ t("detail.taskFlow") }}</span>
                 <el-button text type="primary" @click="sidebarOpen = false">{{ t("detail.sidebarCollapse") }}</el-button>
               </div>
-              <el-collapse v-model="sidebarActivePanels">
-                <el-collapse-item name="scan" :title="t('detail.scanResults')">
-                  <ul class="scan-rows">
-                    <li v-for="row in layers" :key="row.type" class="scan-row">
-                      <div class="scan-row-head">
-                        <span class="scan-row-label">
-                          <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="scan-row-ic spin"><Loading /></el-icon>
-                          <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="scan-row-ic ok"><CircleCheck /></el-icon>
-                          <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="scan-row-ic bad"><CircleClose /></el-icon>
-                          <el-icon v-else class="scan-row-ic warn"><WarningFilled /></el-icon>
-                          {{ layerRowLabel(row.type) }}
-                        </span>
-                        <el-tag size="small" :type="scanTagType(row.scan, detail.status)" effect="plain">
-                          {{ row.scan ? (row.scan.passed ? t("detail.scanPass") : t("detail.scanFail")) : t("detail.tagPendingScan") }}
-                        </el-tag>
-                      </div>
-                    </li>
-                  </ul>
-                </el-collapse-item>
-                <el-collapse-item name="flow" :title="t('detail.taskFlow')">
-                  <el-steps
-                    class="detail-flow-steps"
-                    direction="vertical"
-                    :active="detailFlow.activeStep"
-                    finish-status="success"
-                    :process-status="detailFlow.processStatus"
-                  >
-                    <el-step :title="t('detail.flowUpload')" />
-                    <el-step :title="t('detail.flowScan')" />
-                    <el-step :title="t('detail.flowReview')" />
-                    <el-step :title="t('detail.flowPublish')" />
-                  </el-steps>
-                </el-collapse-item>
-                <el-collapse-item name="meta" :title="t('detail.meta')">
-                  <div class="meta-block">
-                    <p class="meta-block-line">
-                      <span class="meta-k">{{ t("detail.author") }}</span>
-                      <span>{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : t("common.emDash") }}</span>
-                    </p>
-                    <p class="meta-block-line">
-                      <span class="meta-k">{{ t("detail.submittedAt") }}</span>
-                      <span>{{ formatTime(detail.created_at) }}</span>
-                    </p>
-                    <div v-if="detail.homepage_url || detail.repository_url" class="meta-links">
-                      <el-link v-if="detail.homepage_url" :href="detail.homepage_url" target="_blank" rel="noopener noreferrer" type="primary">
-                        {{ t("detail.linkHomepage") }}
-                      </el-link>
-                      <el-link
-                        v-if="detail.repository_url"
-                        :href="detail.repository_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        type="primary"
-                      >
-                        {{ t("detail.linkRepository") }}
-                      </el-link>
-                    </div>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
+              <el-steps
+                class="detail-flow-steps"
+                direction="vertical"
+                :active="detailFlow.activeStep"
+                finish-status="success"
+                :process-status="detailFlow.processStatus"
+              >
+                <el-step :title="t('detail.flowUpload')" />
+                <el-step :title="t('detail.flowScan')" />
+                <el-step :title="t('detail.flowReview')" />
+                <el-step :title="t('detail.flowPublish')" />
+              </el-steps>
             </div>
           </aside>
         </div>
@@ -466,92 +424,12 @@ onMounted(() => void load());
   border-bottom-color: var(--app-border);
 }
 
-.scan-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.scan-row-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.scan-row-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--app-text);
-  min-width: 0;
-}
-
-.scan-row-ic {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.scan-row-ic.ok {
-  color: var(--el-color-success);
-}
-
-.scan-row-ic.bad {
-  color: var(--el-color-danger);
-}
-
-.scan-row-ic.warn {
-  color: var(--app-muted);
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .detail-flow-steps {
   padding: 4px 0 8px;
 }
 
 .detail-flow-steps :deep(.el-step__title) {
   font-size: 13px;
-}
-
-.meta-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--app-text);
-}
-
-.meta-block-line {
-  margin: 0;
-  line-height: 1.5;
-}
-
-.meta-k {
-  color: var(--app-muted);
-  margin-right: 4px;
-}
-
-.meta-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
 }
 
 .crumb {
@@ -650,6 +528,25 @@ onMounted(() => void load());
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.scan-result-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scan-tag-icon {
+  font-size: 12px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .body {
