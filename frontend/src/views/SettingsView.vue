@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type { UploadRequestOptions } from "element-plus";
 import { ElMessage } from "element-plus";
+import VuePictureCropper from "vue-picture-cropper";
+import type { Cropper } from "vue-picture-cropper/dist/types";
 import { useLocale } from "@/locales";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -40,6 +42,11 @@ const newPassword = ref("");
 const confirmPassword = ref("");
 
 const avatarUploading = ref(false);
+
+/* ---- 裁切弹窗 ---- */
+const cropDialogVisible = ref(false);
+const cropImageSrc = ref("");
+const cropperInstance = ref<Cropper | null>(null);
 
 /** 偏好 Tab：开关 ON = 暗色（与 document.documentElement.dark 一致） */
 const prefDark = ref(false);
@@ -183,8 +190,39 @@ async function handleAvatarRequest(opt: UploadRequestOptions) {
   if (!beforeAvatarUpload(file)) {
     return;
   }
+  // 用 FileReader 转成 base64 给裁切组件
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    cropImageSrc.value = e.target?.result as string;
+    cropDialogVisible.value = true;
+  };
+  reader.readAsDataURL(file);
+}
+
+function onCropperReady(cropper: Cropper) {
+  cropperInstance.value = cropper;
+}
+
+async function confirmCrop() {
+  if (!cropperInstance.value) return;
+  const canvas = cropperInstance.value.getCroppedCanvas({
+    width: 256,
+    height: 256,
+    fillColor: "#fff",
+  });
+  if (!canvas) {
+    ElMessage.error(t("settings.avatarCropFail"));
+    return;
+  }
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.9));
+  if (!blob) {
+    ElMessage.error(t("settings.avatarCropFail"));
+    return;
+  }
+  cropDialogVisible.value = false;
   avatarUploading.value = true;
   try {
+    const file = new File([blob], "avatar.webp", { type: "image/webp" });
     await uploadAvatar(file);
     ElMessage.success(t("settings.avatarSuccess"));
     const { data } = await fetchCurrentUser();
@@ -197,6 +235,12 @@ async function handleAvatarRequest(opt: UploadRequestOptions) {
   } finally {
     avatarUploading.value = false;
   }
+}
+
+function cancelCrop() {
+  cropDialogVisible.value = false;
+  cropImageSrc.value = "";
+  cropperInstance.value = null;
 }
 
 async function resendVerification() {
@@ -368,6 +412,37 @@ onUnmounted(() => {
         </el-tab-pane>
       </el-tabs>
     </div>
+
+    <!-- 头像裁切弹窗 -->
+    <el-dialog
+      v-model="cropDialogVisible"
+      :title="t('settings.avatarCropTitle')"
+      width="420px"
+      :close-on-click-modal="false"
+      @close="cancelCrop"
+    >
+      <div class="crop-container">
+        <VuePictureCropper
+          :box-style="{ width: '100%', height: '340px', background: '#f5f5f5' }"
+          :img="cropImageSrc"
+          :options="{
+            viewMode: 1,
+            dragMode: 'move',
+            aspectRatio: 1,
+            autoCropArea: 0.85,
+            cropBoxResizable: true,
+            cropBoxMovable: false,
+          }"
+          @crop-ready="onCropperReady"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="cancelCrop">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="avatarUploading" @click="confirmCrop">
+          {{ t('settings.avatarCropConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
