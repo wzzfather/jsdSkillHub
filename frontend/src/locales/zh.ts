@@ -368,6 +368,11 @@ const zh: Record<string, string> = {
 
 Object.assign(zh, {
   'common.emDash': '—',
+  'category.productivity': '效率',
+  'category.security': '安全',
+  'category.support': '支持',
+  'category.knowledge': '知识',
+  'category.test': '测试',
   'common.loading': '加载中…',
   'common.brandSub': '企业级 AI Agent 应用商店',
   'common.cancel': '取消',

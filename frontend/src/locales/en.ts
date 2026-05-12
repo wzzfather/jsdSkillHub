@@ -372,6 +372,11 @@ const en: Record<string, string> = {
 
 Object.assign(en, {
   'common.emDash': '—',
+  'category.productivity': 'Productivity',
+  'category.security': 'Security',
+  'category.support': 'Support',
+  'category.knowledge': 'Knowledge',
+  'category.test': 'Test',
   'common.loading': 'Loading…',
   'common.brandSub': 'Enterprise AI Agent App Store',
   'common.cancel': 'Cancel',

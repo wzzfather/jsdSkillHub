@@ -23,6 +23,19 @@ const page = ref(1);
 const pageSize = 12;
 
 const DEFAULT_CATEGORIES = ["productivity", "security", "support", "knowledge"];
+
+function categoryLabel(cat: string): string {
+  const c = cat.trim().toLowerCase();
+  const map: Record<string, string> = {
+    productivity: t("category.productivity"),
+    security: t("category.security"),
+    support: t("category.support"),
+    knowledge: t("category.knowledge"),
+    test: t("category.test"),
+  };
+  return map[c] || cat;
+}
+
 const dynamicCategories = ref<string[]>([]);
 const categoriesLoaded = ref(false);
 
@@ -48,7 +61,8 @@ onMounted(() => {
 });
 
 function skillCategoryLabel(skill: Skill) {
-  return skill.category && skill.category.trim() ? skill.category : t("common.emDash");
+  const cat = skill.category?.trim();
+  return cat ? categoryLabel(cat) : t("common.emDash");
 }
 
 function authorLabel(skill: Skill) {
@@ -72,6 +86,7 @@ function heroToneClass(cat: string | null | undefined) {
   if (c === "security") return "tone-security";
   if (c === "support") return "tone-support";
   if (c === "knowledge") return "tone-knowledge";
+  if (c === "test") return "tone-test";
   if (c === "other" || c === "其他") return "tone-other";
   return "tone-default";
 }
@@ -82,7 +97,8 @@ function categoryColor(cat: string | null | undefined): string {
   if (c === "productivity") return "#0ea5e9";
   if (c === "security") return "#6366f1";
   if (c === "support") return "#f97316";
-  if (c === "knowledge") return "#2563eb";
+  if (c === "knowledge") return "#22c55e";
+  if (c === "test") return "#ec4899";
   return "#94a3b8";
 }
 
@@ -196,7 +212,7 @@ function heroStat(): string {
               :label="cat"
               :style="{ '--cat-color': categoryColor(cat) }"
             >
-              {{ cat }}
+              {{ categoryLabel(cat) }}
             </el-radio-button>
           </el-radio-group>
         </div>
@@ -467,12 +483,13 @@ function heroStat(): string {
 }
 
 .tone-knowledge {
-  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
 }
 
 .tone-other,
-.tone-default {
-  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+.tone-default,
+.tone-test {
+  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
 }
 
 .hero-icon-img {
