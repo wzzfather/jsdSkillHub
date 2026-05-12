@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.schemas.user import UpdateProfileRequest, UserMeResponse
-from app.utils.minio_client import http_object_url, upload_bytes
+from app.utils.minio_client import upload_bytes
 from app.utils.password import hash_password, verify_password
 
 _MAX_AVATAR_BYTES = 2 * 1024 * 1024
@@ -29,7 +29,11 @@ def normalize_email(email: str) -> str:
 
 
 def user_to_me_response(user: User) -> UserMeResponse:
-    return UserMeResponse.model_validate(user)
+    """对外始终返回 API 代理相对路径，兼容历史数据中存过的 MinIO 绝对 URL。"""
+    me = UserMeResponse.model_validate(user)
+    if me.avatar_url:
+        me = me.model_copy(update={"avatar_url": f"/api/avatars/{user.id}.webp"})
+    return me
 
 
 async def update_user_profile(
@@ -167,12 +171,12 @@ async def apply_user_avatar_upload(
     content_type: str | None,
     raw: bytes,
 ) -> str:
-    """校验头像，处理后写入 MinIO（avatars/{user_id}.webp），更新 avatar_url。"""
+    """校验头像，处理后写入 MinIO（avatars/{user_id}.webp），avatar_url 存相对路径 /api/avatars/{id}.webp。"""
     kind = _avatar_validate_headers(filename, content_type, raw)
     webp_data = _process_avatar_bytes(raw, kind)
     key = f"avatars/{user.id}.webp"
     await upload_bytes(key, webp_data, content_type="image/webp")
-    url = http_object_url(key, external=True)
-    user.avatar_url = url
+    rel = f"/api/avatars/{user.id}.webp"
+    user.avatar_url = rel
     db.add(user)
-    return url
+    return rel

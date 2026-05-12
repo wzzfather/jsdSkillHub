@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import AsyncSessionLocal
-from app.routers import auth, audit, captcha, reviews, scans, skills, workflow
+from app.routers import audit, auth, avatars, captcha, reviews, scans, skills, workflow
 from app.services.seed import run_startup_seed
 
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(avatars.router, prefix="/api")
 app.include_router(captcha.router)
 app.include_router(skills.router, prefix="/api")
 app.include_router(reviews.router, prefix="/api")

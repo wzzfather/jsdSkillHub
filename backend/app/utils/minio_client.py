@@ -2,6 +2,7 @@ import asyncio
 
 import boto3
 from botocore.client import BaseClient
+from botocore.exceptions import ClientError
 
 from app.config import get_settings
 
@@ -75,3 +76,21 @@ async def download_object_to_file(key: str, dest_path: str) -> None:
         client.download_file(s.minio_bucket, key, dest_path)
 
     await asyncio.to_thread(_download)
+
+
+async def get_object_bytes(key: str) -> bytes | None:
+    """从 MinIO 读取对象正文。不存在时返回 None（S3/MinIO 报告 NoSuchKey 或 404）。"""
+    s = get_settings()
+    client = _client()
+
+    def _read() -> bytes | None:
+        try:
+            resp = client.get_object(Bucket=s.minio_bucket, Key=key)
+            return resp["Body"].read()
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in ("NoSuchKey", "404"):
+                return None
+            raise
+
+    return await asyncio.to_thread(_read)

@@ -179,9 +179,13 @@ function beforeAvatarUpload(file: File) {
 }
 
 async function handleAvatarRequest(opt: UploadRequestOptions) {
+  const file = opt.file as File;
+  if (!beforeAvatarUpload(file)) {
+    return;
+  }
   avatarUploading.value = true;
   try {
-    await uploadAvatar(opt.file as File);
+    await uploadAvatar(file);
     ElMessage.success(t("settings.avatarSuccess"));
     const { data } = await fetchCurrentUser();
     me.value = data;
@@ -438,6 +442,7 @@ onUnmounted(() => {
 .avatar-photo {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
   display: block;
 }
