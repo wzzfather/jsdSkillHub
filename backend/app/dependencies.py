@@ -14,7 +14,7 @@ from app.database import get_db
 from app.models.user import User
 
 security_optional = HTTPBearer(auto_error=False)
-security_required = HTTPBearer(auto_error=True)
+security_required = HTTPBearer(auto_error=False)
 
 settings = get_settings()
 
@@ -47,9 +47,15 @@ async def get_current_user_optional(
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_required)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_required)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"detail": "请先登录", "code": "AUTH_REQUIRED"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail={"detail": "无效或未登录", "code": "AUTH_INVALID"},
