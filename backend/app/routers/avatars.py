@@ -20,5 +20,5 @@ async def get_user_avatar_webp(user_id: UUID) -> Response:
     return Response(
         content=data,
         media_type="image/webp",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )

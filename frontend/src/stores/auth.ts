@@ -26,7 +26,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
     try {
       const { data } = await fetchCurrentUser();
-      avatarUrl.value = data.avatar_url ?? null;
+      avatarUrl.value = data.avatar_url ? `${data.avatar_url}?t=${Date.now()}` : null;
       profileUsername.value = data.username;
     } catch {
       avatarUrl.value = null;

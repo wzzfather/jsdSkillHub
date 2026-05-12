@@ -47,6 +47,13 @@ const avatarUploading = ref(false);
 const cropDialogVisible = ref(false);
 const cropImageSrc = ref("");
 
+/** 头像 URL 加 cache-bust 参数，避免上传后浏览器缓存旧图 */
+const avatarDisplayUrl = computed(() => {
+  const url = me.value?.avatar_url;
+  if (!url) return "";
+  return `${url}?t=${Date.now()}`;
+});
+
 const [CropperComponent, cropper] = useCropper(
   computed(() => ({
     img: cropImageSrc.value,
@@ -338,7 +345,7 @@ onUnmounted(() => {
                 @keydown.enter.prevent="triggerAvatarPick"
                 @keydown.space.prevent="triggerAvatarPick"
               >
-                <img v-if="me?.avatar_url" :src="me.avatar_url" class="avatar-photo" alt="" />
+                <img v-if="me?.avatar_url" :src="avatarDisplayUrl" class="avatar-photo" alt="" />
                 <template v-else>{{ avatarLetter }}</template>
               </div>
               <span class="muted avatar-v2">{{ t("settings.avatarUpload") }}</span>
