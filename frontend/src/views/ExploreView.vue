@@ -76,6 +76,26 @@ function heroToneClass(cat: string | null | undefined) {
   return "tone-default";
 }
 
+/** 与 hero 渐变主色一致，用于筛选栏与卡片分类标签 */
+function categoryColor(cat: string | null | undefined): string {
+  const c = (cat ?? "").trim().toLowerCase();
+  if (c === "productivity") return "#0ea5e9";
+  if (c === "security") return "#6366f1";
+  if (c === "support") return "#f97316";
+  if (c === "knowledge") return "#2563eb";
+  return "#94a3b8";
+}
+
+function skillCategoryTagStyle(skill: Skill) {
+  const raw = skill.category?.trim() ? skill.category : "";
+  const hex = categoryColor(raw);
+  return {
+    color: hex,
+    borderColor: `${hex}40`,
+    backgroundColor: `${hex}18`,
+  };
+}
+
 async function loadPage() {
   loading.value = true;
   try {
@@ -167,8 +187,15 @@ function heroStat(): string {
         <div class="filter-block">
           <span class="filter-label">{{ t("explore.category") }}</span>
           <el-radio-group v-model="categoryFilter" class="cat-radio-group" size="large">
-            <el-radio-button label="">{{ t("common.all") }}</el-radio-button>
-            <el-radio-button v-for="cat in dynamicCategories" :key="cat" :label="cat">
+            <el-radio-button label="" :style="{ '--cat-color': categoryColor('') }">
+              {{ t("common.all") }}
+            </el-radio-button>
+            <el-radio-button
+              v-for="cat in dynamicCategories"
+              :key="cat"
+              :label="cat"
+              :style="{ '--cat-color': categoryColor(cat) }"
+            >
               {{ cat }}
             </el-radio-button>
           </el-radio-group>
@@ -222,7 +249,9 @@ function heroStat(): string {
             <div class="tags-row">
               <el-tag v-if="skillIsDeprecated(s)" size="small" effect="dark" type="warning">{{ t("explore.deprecatedBadge") }}</el-tag>
               <el-tag size="small" effect="plain" type="info">v{{ s.version }}</el-tag>
-              <el-tag size="small" effect="light" type="info">{{ skillCategoryLabel(s) }}</el-tag>
+              <el-tag size="small" effect="light" class="skill-category-tag" :style="skillCategoryTagStyle(s)">
+                {{ skillCategoryLabel(s) }}
+              </el-tag>
             </div>
             <p class="desc line-clamp-2">{{ s.description || t("explore.noDesc") }}</p>
             <div class="foot muted">{{ t("explore.authorPrefix") }}{{ authorLabel(s) }}</div>
@@ -339,12 +368,18 @@ function heroStat(): string {
   border-radius: var(--radius-control);
 }
 
+.cat-radio-group {
+  --cat-color: #94a3b8;
+}
+
 .cat-radio-group :deep(.el-radio-button__inner) {
   border-radius: 999px !important;
-  border: 1px solid var(--app-border-strong) !important;
+  border: 1px solid color-mix(in srgb, var(--cat-color) 42%, var(--app-border-strong)) !important;
   box-shadow: none !important;
   padding: 8px 14px;
   font-weight: 500;
+  background-color: color-mix(in srgb, var(--cat-color) 12%, var(--app-surface)) !important;
+  color: var(--cat-color) !important;
 }
 
 .cat-radio-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
@@ -356,10 +391,15 @@ function heroStat(): string {
 }
 
 .cat-radio-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  background-color: var(--app-primary) !important;
-  border-color: var(--app-primary) !important;
+  background-color: var(--cat-color) !important;
+  border-color: var(--cat-color) !important;
   color: #fff !important;
   box-shadow: none !important;
+}
+
+.skill-category-tag {
+  border-style: solid !important;
+  border-width: 1px !important;
 }
 
 .sort-block {
