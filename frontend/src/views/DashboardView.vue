@@ -41,7 +41,10 @@ async function goReview() {
   router.push({ name: "review" });
 }
 
-onMounted(() => void load());
+onMounted(() => {
+  void auth.ensureAdmin();
+  void load();
+});
 </script>
 
 <template>
@@ -52,7 +55,7 @@ onMounted(() => void load());
     </header>
 
     <el-row :gutter="16" class="kpi-row" v-loading="loading">
-      <el-col :xs="24" :sm="12" :lg="6">
+      <el-col :xs="24" :sm="12" :lg="auth.isAdmin ? 6 : 8">
         <div class="kpi-card">
           <div class="icon-wrap tone-total" aria-hidden="true">
             <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -69,7 +72,7 @@ onMounted(() => void load());
           </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :lg="6">
+      <el-col :xs="24" :sm="12" :lg="auth.isAdmin ? 6 : 8">
         <div class="kpi-card">
           <div class="icon-wrap tone-scan" aria-hidden="true">
             <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -85,7 +88,7 @@ onMounted(() => void load());
           </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :lg="6">
+      <el-col v-if="auth.isAdmin" :xs="24" :sm="12" :lg="6">
         <div class="kpi-card">
           <div class="icon-wrap tone-pending" aria-hidden="true">
             <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -101,7 +104,7 @@ onMounted(() => void load());
           </div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="12" :lg="6">
+      <el-col :xs="24" :sm="12" :lg="auth.isAdmin ? 6 : 8">
         <div class="kpi-card">
           <div class="icon-wrap tone-pub" aria-hidden="true">
             <svg class="dash-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -119,7 +122,7 @@ onMounted(() => void load());
     <div class="actions card-panel">
       <el-button type="primary" plain @click="router.push({ name: 'explore' })">{{ t("dashboard.goExplore") }}</el-button>
       <el-button type="success" plain @click="router.push({ name: 'submit' })">{{ t("dashboard.goSubmit") }}</el-button>
-      <el-button type="danger" plain @click="goReview">{{ t("dashboard.goReview") }}</el-button>
+      <el-button v-if="auth.isAdmin" type="danger" plain @click="goReview">{{ t("dashboard.goReview") }}</el-button>
     </div>
   </div>
 </template>

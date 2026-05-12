@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { CircleCheck, CircleClose, Loading, WarningFilled } from "@element-plus/icons-vue";
+import {
+  CircleCheck,
+  CircleClose,
+  DArrowLeft,
+  DArrowRight,
+  Loading,
+  WarningFilled,
+} from "@element-plus/icons-vue";
 import { ElMessage, type InputInstance } from "element-plus";
 import { downloadSkill, fetchSkillDetail, fetchSkillVersions } from "@/api/skills";
 import type { ScanLayer, SkillDetail, SkillVersion } from "@/api/types";
@@ -17,6 +24,27 @@ const versions = ref<SkillVersion[]>([]);
 const versionsLoading = ref(false);
 const versionsLoadFailed = ref(false);
 const cliInstallInputRef = ref<InputInstance>();
+const asideExpanded = ref(false);
+const asideTab = ref<"scan" | "flow">("scan");
+const isNarrow = ref(false);
+
+let viewportMql: MediaQueryList | null = null;
+
+function syncNarrowLayout() {
+  if (typeof window === "undefined") return;
+  const narrow = window.matchMedia("(max-width: 767px)").matches;
+  const wasNarrow = isNarrow.value;
+  isNarrow.value = narrow;
+  if (narrow) {
+    asideExpanded.value = true;
+  } else if (wasNarrow && !narrow) {
+    asideExpanded.value = false;
+  }
+}
+
+function onViewportChange() {
+  syncNarrowLayout();
+}
 
 function skillDisplayTitle(skill: Pick<SkillDetail, "name" | "namespace">) {
   const ns = skill.namespace?.trim();
@@ -208,7 +236,16 @@ async function load() {
   }
 }
 
-onMounted(() => void load());
+onMounted(() => {
+  syncNarrowLayout();
+  viewportMql = window.matchMedia("(max-width: 767px)");
+  viewportMql.addEventListener("change", onViewportChange);
+  void load();
+});
+
+onUnmounted(() => {
+  viewportMql?.removeEventListener("change", onViewportChange);
+});
 </script>
 
 <template>
@@ -220,14 +257,15 @@ onMounted(() => void load());
       <el-button class="mt" type="primary" @click="router.push({ name: 'explore' })">{{ t("detail.backMarket") }}</el-button>
     </div>
 
-    <div v-else class="stack">
-      <el-breadcrumb separator="/" class="crumb">
-        <el-breadcrumb-item :to="{ name: 'explore' }">{{ t("detail.breadcrumbMarket") }}</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ skillDisplayTitle(detail) }}</el-breadcrumb-item>
-      </el-breadcrumb>
+    <div v-else class="detail-layout">
+      <div class="detail-main">
+        <el-breadcrumb separator="/" class="crumb">
+          <el-breadcrumb-item :to="{ name: 'explore' }">{{ t("detail.breadcrumbMarket") }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ skillDisplayTitle(detail) }}</el-breadcrumb-item>
+        </el-breadcrumb>
 
-      <section class="main-card card-panel">
-        <div class="hero-row">
+        <section class="main-card card-panel">
+          <div class="hero-row">
           <div class="skill-icon-wrap" aria-hidden="true">
             <img v-if="detail.icon_url" class="skill-icon-img" :src="detail.icon_url" alt="" />
             <div v-else class="skill-icon-ph">
@@ -250,20 +288,20 @@ onMounted(() => void load());
               <el-tag v-for="tag in detail.tags || []" :key="tag" effect="plain" type="success" size="small">{{ tag }}</el-tag>
             </div>
           </div>
-        </div>
+          </div>
 
-        <el-alert
+          <el-alert
           v-if="detail.status === 'deprecated'"
           class="deprecated-alert"
           type="warning"
           :closable="false"
           show-icon
           :title="t('detail.deprecatedNotice')"
-        >
-          <template v-if="detail.status_message">{{ detail.status_message }}</template>
-        </el-alert>
+          >
+            <template v-if="detail.status_message">{{ detail.status_message }}</template>
+          </el-alert>
 
-        <div v-if="detail.homepage_url || detail.repository_url" class="link-row">
+          <div v-if="detail.homepage_url || detail.repository_url" class="link-row">
           <el-link v-if="detail.homepage_url" :href="detail.homepage_url" target="_blank" rel="noopener noreferrer" type="primary">
             {{ t("detail.linkHomepage") }}
           </el-link>
@@ -276,17 +314,17 @@ onMounted(() => void load());
           >
             {{ t("detail.linkRepository") }}
           </el-link>
-        </div>
+          </div>
 
-        <p class="body">{{ detail.description || t("detail.noDesc") }}</p>
+          <p class="body">{{ detail.description || t("detail.noDesc") }}</p>
 
-        <div class="meta-line muted">
+          <div class="meta-line muted">
           <span>{{ t("detail.author") }}{{ detail.author_id ? `…${detail.author_id.slice(-10)}` : t("common.emDash") }}</span>
           <span class="dot">·</span>
           <span>{{ t("detail.submittedAt") }}{{ formatTime(detail.created_at) }}</span>
-        </div>
+          </div>
 
-        <template v-if="detail.status === 'published'">
+          <template v-if="detail.status === 'published'">
           <div class="actions">
             <el-button type="primary" size="large" class="act-pri" @click="onDownloadZip">{{ t("detail.dlZip") }}</el-button>
           </div>
@@ -305,16 +343,16 @@ onMounted(() => void load());
               </template>
             </el-input>
           </div>
-        </template>
-      </section>
+          </template>
+        </section>
 
-      <section class="versions-section">
-        <h2 class="section-title">{{ t("detail.versionsTitle") }}</h2>
-        <div v-if="versionsLoading" class="muted">{{ t("common.loading") }}</div>
-        <el-alert v-else-if="versionsLoadFailed" type="info" :closable="false" show-icon class="versions-hint">
-          {{ t("detail.versionsNeedLogin") }}
-        </el-alert>
-        <el-table v-else :data="versions" stripe class="versions-table" empty-text="—">
+        <section class="versions-section">
+          <h2 class="section-title">{{ t("detail.versionsTitle") }}</h2>
+          <div v-if="versionsLoading" class="muted">{{ t("common.loading") }}</div>
+          <el-alert v-else-if="versionsLoadFailed" type="info" :closable="false" show-icon class="versions-hint">
+            {{ t("detail.versionsNeedLogin") }}
+          </el-alert>
+          <el-table v-else :data="versions" stripe class="versions-table" empty-text="—">
           <el-table-column prop="version" :label="t('detail.versionsColVersion')" width="110" />
           <el-table-column :label="t('detail.versionsColPackage')" min-width="140">
             <template #default="{ row }">
@@ -342,51 +380,81 @@ onMounted(() => void load());
               <span v-else class="muted">{{ t("common.emDash") }}</span>
             </template>
           </el-table-column>
-        </el-table>
-      </section>
+          </el-table>
+        </section>
 
-      <section class="scan-section">
-        <h2 class="section-title">{{ t("detail.scanTitle") }}</h2>
-        <el-row :gutter="16">
-          <el-col v-for="row in layers" :key="row.type" :xs="24" :md="8">
-            <div class="scan-card" :class="scanTone(row.type)">
-              <div class="scan-ico" aria-hidden="true">
-                <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="spin"><Loading /></el-icon>
-                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="ico-ok"><CircleCheck /></el-icon>
-                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="ico-bad"><CircleClose /></el-icon>
-                <el-icon v-else class="ico-warn"><WarningFilled /></el-icon>
-              </div>
-              <div class="scan-info">
-                <div class="scan-name">{{ scanLayerTitle(row.type) }}</div>
-                <div class="scan-badge">
-                  <template v-if="scanIcon(row.scan, detail.status) === 'loading'">
-                    <el-tag type="info" effect="plain" size="small">{{ t("detail.tagPendingScan") }}</el-tag>
-                  </template>
-                  <template v-else-if="scanIcon(row.scan, detail.status) === 'warn'">
-                    <el-tag type="info" effect="plain" size="small">N/A</el-tag>
-                  </template>
-                  <template v-else-if="row.scan?.passed">
-                    <el-tag type="success" effect="dark" size="small">PASS</el-tag>
-                  </template>
-                  <template v-else>
-                    <el-tag type="danger" effect="dark" size="small">FAIL</el-tag>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </el-col>
-        </el-row>
-      </section>
+        <button
+          type="button"
+          class="aside-toggle"
+          @click="asideExpanded = true"
+          v-if="!isNarrow && !asideExpanded"
+        >
+          <el-icon><DArrowLeft /></el-icon>
+          {{ t("detail.asideExpand") }}
+        </button>
+      </div>
 
-      <section class="flow-section">
-        <h2 class="section-title">{{ t("detail.flowTitle") }}</h2>
-        <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
-          <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
-        </el-steps>
-        <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
-          {{ detailFlow.footnote }}
-        </el-alert>
-      </section>
+      <aside class="detail-aside" :class="{ collapsed: !asideExpanded }">
+        <div class="detail-aside-inner">
+          <header class="aside-head">
+            <span class="aside-head-title">{{ t("detail.scanTitle") }} & {{ t("detail.flowTitle") }}</span>
+            <button
+              type="button"
+              class="aside-collapse-btn"
+              v-if="!isNarrow"
+              @click="asideExpanded = false"
+            >
+              <el-icon><DArrowRight /></el-icon>
+              {{ t("detail.asideCollapse") }}
+            </button>
+          </header>
+          <el-tabs v-model="asideTab" class="aside-tabs">
+            <el-tab-pane :label="t('detail.scanTitle')" name="scan">
+              <section class="scan-section">
+                <el-row :gutter="16">
+                  <el-col v-for="row in layers" :key="row.type" :xs="24" :md="8">
+                    <div class="scan-card" :class="scanTone(row.type)">
+                      <div class="scan-ico" aria-hidden="true">
+                        <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="spin"><Loading /></el-icon>
+                        <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="ico-ok"><CircleCheck /></el-icon>
+                        <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="ico-bad"><CircleClose /></el-icon>
+                        <el-icon v-else class="ico-warn"><WarningFilled /></el-icon>
+                      </div>
+                      <div class="scan-info">
+                        <div class="scan-name">{{ scanLayerTitle(row.type) }}</div>
+                        <div class="scan-badge">
+                          <template v-if="scanIcon(row.scan, detail.status) === 'loading'">
+                            <el-tag type="info" effect="plain" size="small">{{ t("detail.tagPendingScan") }}</el-tag>
+                          </template>
+                          <template v-else-if="scanIcon(row.scan, detail.status) === 'warn'">
+                            <el-tag type="info" effect="plain" size="small">N/A</el-tag>
+                          </template>
+                          <template v-else-if="row.scan?.passed">
+                            <el-tag type="success" effect="dark" size="small">PASS</el-tag>
+                          </template>
+                          <template v-else>
+                            <el-tag type="danger" effect="dark" size="small">FAIL</el-tag>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </el-col>
+                </el-row>
+              </section>
+            </el-tab-pane>
+            <el-tab-pane :label="t('detail.flowTitle')" name="flow">
+              <section class="flow-section">
+                <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
+                  <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
+                </el-steps>
+                <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
+                  {{ detailFlow.footnote }}
+                </el-alert>
+              </section>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -398,10 +466,115 @@ onMounted(() => void load());
   gap: 16px;
 }
 
-.stack {
+.detail-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.detail-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.detail-aside {
+  width: 380px;
+  flex-shrink: 0;
+  transition:
+    width 0.3s ease,
+    opacity 0.3s ease;
+  overflow: hidden;
+}
+
+.detail-aside.collapsed {
+  width: 0;
+  opacity: 0;
+}
+
+.detail-aside-inner {
+  width: 380px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.aside-head-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-text);
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.aside-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-muted);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.aside-collapse-btn:hover {
+  color: var(--app-text);
+  border-color: var(--app-border-strong);
+}
+
+.aside-tabs :deep(.el-tabs__header) {
+  margin-bottom: 12px;
+}
+
+.aside-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+.aside-toggle:hover {
+  border-color: color-mix(in srgb, var(--app-text) 28%, var(--app-border-strong));
+}
+
+@media (max-width: 767px) {
+  .detail-layout {
+    flex-direction: column;
+  }
+
+  .detail-aside {
+    width: 100% !important;
+    opacity: 1 !important;
+  }
+
+  .detail-aside-inner {
+    width: 100%;
+  }
 }
 
 .crumb {

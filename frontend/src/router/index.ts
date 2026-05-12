@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { ElMessage } from "element-plus";
+import { translate } from "@/locales";
 import { useAuthStore } from "@/stores/auth";
 
 const LoginView = () => import("@/views/LoginView.vue");
@@ -65,7 +66,7 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAdmin && auth.token) {
     await auth.ensureAdmin();
     if (!auth.isAdmin) {
-      ElMessage.warning("需要管理员权限");
+      ElMessage.warning(translate("admin.noPermission"));
       return { name: "explore" };
     }
   }
