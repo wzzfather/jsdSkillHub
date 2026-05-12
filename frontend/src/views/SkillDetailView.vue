@@ -25,7 +25,6 @@ const versionsLoading = ref(false);
 const versionsLoadFailed = ref(false);
 const cliInstallInputRef = ref<InputInstance>();
 const asideExpanded = ref(false);
-const asideTab = ref<"scan" | "flow">("scan");
 const isNarrow = ref(false);
 
 let viewportMql: MediaQueryList | null = null;
@@ -170,22 +169,25 @@ function focusCliInstallInput() {
   cliInstallInputRef.value?.select?.();
 }
 
-function scanLayerTitle(scanType: string) {
-  if (scanType === "semgrep") return t("detail.layerSemgrep");
-  if (scanType === "clamav") return t("detail.layerClamav");
-  return t("detail.layerLlm");
-}
-
 function scanIcon(scan: ScanLayer | undefined, skillStatus: string) {
   if (!scan && skillStatus === "scanning") return "loading";
   if (!scan) return "warn";
   return scan.passed ? "ok" : "bad";
 }
 
-function scanTone(kind: string) {
-  if (kind === "semgrep") return "tone-semgrep";
-  if (kind === "clamav") return "tone-clamav";
-  return "tone-llm";
+function scanTagLabel(scan: ScanLayer | undefined, skillStatus: string) {
+  const kind = scan?.scan_type;
+  if (kind === "semgrep") return t("detail.scanStatic");
+  if (kind === "clamav") return t("detail.scanSecurity");
+  if (kind === "llm") return t("detail.scanSmart");
+  if (!scan && skillStatus === "scanning") return t("detail.scanStatic");
+  return t("detail.scanStatic");
+}
+
+function scanTagType(scan: ScanLayer | undefined, skillStatus: string) {
+  if (!scan && skillStatus === "scanning") return "info";
+  if (!scan) return "info";
+  return scan.passed ? "success" : "danger";
 }
 
 function apiErrorDetail(err: unknown): string {
@@ -281,6 +283,13 @@ onUnmounted(() => {
           <div class="title-block">
             <h1 class="title">{{ skillDisplayTitle(detail) }}</h1>
             <div class="title-tags">
+              <el-tag v-for="row in layers" :key="row.type" size="small" :type="scanTagType(row.scan, detail.status)" effect="dark" class="scan-result-tag">
+                <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="scan-tag-icon spin"><Loading /></el-icon>
+                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="scan-tag-icon"><CircleCheck /></el-icon>
+                <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="scan-tag-icon"><CircleClose /></el-icon>
+                <el-icon v-else class="scan-tag-icon"><WarningFilled /></el-icon>
+                {{ scanTagLabel(row.scan, detail.status) }}
+              </el-tag>
               <el-tag v-if="detail.status === 'deprecated'" effect="dark" type="warning">{{ t("detail.deprecatedBadge") }}</el-tag>
               <el-tag effect="light" type="info">{{ statusLabel(detail.status) }}</el-tag>
               <el-tag effect="plain" type="info">v{{ detail.version }}</el-tag>
@@ -397,7 +406,7 @@ onUnmounted(() => {
       <aside class="detail-aside" :class="{ collapsed: !asideExpanded }">
         <div class="detail-aside-inner">
           <header class="aside-head">
-            <span class="aside-head-title">{{ t("detail.scanTitle") }} & {{ t("detail.flowTitle") }}</span>
+            <span class="aside-head-title">{{ t("detail.flowTitle") }}</span>
             <button
               type="button"
               class="aside-collapse-btn"
@@ -408,51 +417,14 @@ onUnmounted(() => {
               {{ t("detail.asideCollapse") }}
             </button>
           </header>
-          <el-tabs v-model="asideTab" class="aside-tabs">
-            <el-tab-pane :label="t('detail.scanTitle')" name="scan">
-              <section class="scan-section">
-                <el-row :gutter="16">
-                  <el-col v-for="row in layers" :key="row.type" :xs="24" :md="8">
-                    <div class="scan-card" :class="scanTone(row.type)">
-                      <div class="scan-ico" aria-hidden="true">
-                        <el-icon v-if="scanIcon(row.scan, detail.status) === 'loading'" class="spin"><Loading /></el-icon>
-                        <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'ok'" class="ico-ok"><CircleCheck /></el-icon>
-                        <el-icon v-else-if="scanIcon(row.scan, detail.status) === 'bad'" class="ico-bad"><CircleClose /></el-icon>
-                        <el-icon v-else class="ico-warn"><WarningFilled /></el-icon>
-                      </div>
-                      <div class="scan-info">
-                        <div class="scan-name">{{ scanLayerTitle(row.type) }}</div>
-                        <div class="scan-badge">
-                          <template v-if="scanIcon(row.scan, detail.status) === 'loading'">
-                            <el-tag type="info" effect="plain" size="small">{{ t("detail.tagPendingScan") }}</el-tag>
-                          </template>
-                          <template v-else-if="scanIcon(row.scan, detail.status) === 'warn'">
-                            <el-tag type="info" effect="plain" size="small">N/A</el-tag>
-                          </template>
-                          <template v-else-if="row.scan?.passed">
-                            <el-tag type="success" effect="dark" size="small">PASS</el-tag>
-                          </template>
-                          <template v-else>
-                            <el-tag type="danger" effect="dark" size="small">FAIL</el-tag>
-                          </template>
-                        </div>
-                      </div>
-                    </div>
-                  </el-col>
-                </el-row>
-              </section>
-            </el-tab-pane>
-            <el-tab-pane :label="t('detail.flowTitle')" name="flow">
-              <section class="flow-section">
-                <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
-                  <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
-                </el-steps>
-                <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
-                  {{ detailFlow.footnote }}
-                </el-alert>
-              </section>
-            </el-tab-pane>
-          </el-tabs>
+          <section class="flow-section">
+            <el-steps class="flow-steps" :active="detailFlow.active" finish-status="success" :process-status="detailFlow.processStatus" align-center>
+              <el-step v-for="(r, idx) in detailFlow.rows" :key="idx" :title="r.title" :description="r.stateLabel" />
+            </el-steps>
+            <el-alert v-if="detailFlow.footnote" class="flow-note" type="info" :closable="false" show-icon>
+              {{ detailFlow.footnote }}
+            </el-alert>
+          </section>
         </div>
       </aside>
     </div>
@@ -536,10 +508,6 @@ onUnmounted(() => {
 .aside-collapse-btn:hover {
   color: var(--app-text);
   border-color: var(--app-border-strong);
-}
-
-.aside-tabs :deep(.el-tabs__header) {
-  margin-bottom: 12px;
 }
 
 .aside-toggle {
@@ -758,73 +726,14 @@ onUnmounted(() => {
   color: var(--app-text);
 }
 
-.scan-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--app-surface);
-  border-radius: var(--radius-control);
-  padding: 16px;
-  border: 1px solid var(--app-border);
-  box-shadow: var(--shadow-card);
-  border-left-width: 4px;
-  height: 100%;
-  box-sizing: border-box;
-}
-
-.tone-semgrep {
-  border-left-color: #6366f1;
-}
-
-.tone-clamav {
-  border-left-color: #22c55e;
-}
-
-.tone-llm {
-  border-left-color: #3b82f6;
-}
-
-.scan-ico {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+.scan-result-tag {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--app-text) 6%, transparent);
-  font-size: 22px;
-  flex-shrink: 0;
+  gap: 4px;
 }
 
-.scan-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-
-.scan-name {
-  font-weight: 600;
-  color: var(--app-text);
-  font-size: 14px;
-}
-
-.scan-badge {
-  display: flex;
-  align-items: center;
-}
-
-.ico-ok {
-  color: var(--app-success);
-}
-
-.ico-bad {
-  color: var(--app-danger);
-}
-
-.ico-warn {
-  color: var(--app-warning);
+.scan-tag-icon {
+  font-size: 12px;
 }
 
 .spin {
@@ -839,10 +748,6 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
-}
-
-.empty-card {
-  text-align: left;
 }
 
 .mt {
